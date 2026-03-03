@@ -1,9 +1,10 @@
 import { View, Text } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 const ExploreScreen = () => {
   return (
-    <View>
+    <SafeAreaView>
       <Text>ExploreScreen</Text>
-    </View>
+    </SafeAreaView>
   )
 }
 export default ExploreScreen    
