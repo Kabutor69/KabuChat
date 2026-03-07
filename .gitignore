@@ -1,45 +1,114 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
-node_modules/
+# ==================== MOBILE (React Native/Expo) ====================
+
+# Dependencies
+mobile/node_modules/
+mobile/.pnp
+mobile/.pnp.js
 
 # Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
 
 # Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+mobile/.kotlin/
+mobile/*.orig.*
+mobile/*.jks
+mobile/*.p8
+mobile/*.p12
+mobile/*.key
+mobile/*.mobileprovision
 
 # Metro
-.metro-health-check*
+mobile/.metro-health-check*
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Debug
+mobile/npm-debug.*
+mobile/yarn-debug.*
+mobile/yarn-error.*
+
+# TypeScript
+mobile/*.tsbuildinfo
+mobile/*.tsbuildinfo.*
+
+# Generated native folders
+mobile/ios/
+mobile/android/
+
+# ==================== BACKEND ====================
+
+# Python
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+backend/.Python
+backend/venv/
+backend/env/
+backend/ENV/
+backend/.venv
+
+# Node.js backend
+backend/node_modules/
+backend/npm-debug.*
+backend/yarn-debug.*
+backend/yarn-error.*
+backend/dist/
+backend/build/
+
+# Database
+backend/*.db
+# backend/*.agents
+backend/*.sqlite
+backend/*.sqlite3
+
+# Logs
+backend/logs/
+backend/*.log
+
+# ==================== GENERAL ====================
+
+# Environment variables
+.env
+.env.local
+.env*.local
+*.env
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env*.example
+
+# Secret/app config files
+mobile/GoogleService-Info.plist
+mobile/google-services.json
+**/sentry.properties
+*.keystore
+*.keystore.jks
 
 # macOS
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
 
-# typescript
-*.tsbuildinfo
+# Tooling caches & reports
+**/.eslintcache
+**/coverage/
+**/.turbo/
+mobile/.expo-shared/
 
-app-example
+# Local databases
+backend/prisma/*.db
+backend/prisma/*.db-journal
 
-# generated native folders
-/ios
-/android
-
-.env.local
+# OS
+Thumbs.db
