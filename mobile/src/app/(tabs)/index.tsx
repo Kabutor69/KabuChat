@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
@@ -5,10 +6,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getConversations, type Conversation } from "../../lib/api";
 
 const ChatScreen: React.FC = () => {
+  const { isSignedIn, isLoaded } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchConversations = async () => {
+    if (!isSignedIn) {
+      console.log("Not signed in, skipping fetch");
+      return;
+    }
+    
     try {
       setLoading(true);
       const data = await getConversations();
@@ -21,8 +28,10 @@ const ChatScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    if (isLoaded && isSignedIn) {
+      fetchConversations();
+    }
+  }, [isLoaded, isSignedIn]);
 
   const renderItem = ({ item }: { item: Conversation }) => {
     const otherUser = item.members[1] || item.members[0];

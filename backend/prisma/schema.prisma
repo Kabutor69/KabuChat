@@ -13,8 +13,20 @@ model User {
   avatar    String?
   createdAt DateTime @default(now())
 
-  messages Message[]
-  members  ConversationMember[]
+  messages        Message[]
+  members         ConversationMember[]
+  sentRequests    FriendRequest[]      @relation("SentRequests")
+  receivedRequests FriendRequest[]     @relation("ReceivedRequests")
+  pushTokens      PushToken[]
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FriendRequest {
@@ -23,6 +35,9 @@ model FriendRequest {
   receiverId String
   status    String   @default("pending")
   createdAt DateTime @default(now())
+
+  sender    User     @relation("SentRequests", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
 }
 
 model Friend {

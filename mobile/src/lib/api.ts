@@ -32,6 +32,20 @@ export interface ChatMessage {
   };
 }
 
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+  sender: {
+    id: string;
+    clerkId: string;
+    username?: string | null;
+    avatar?: string | null;
+  };
+}
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
 
 let authTokenGetter: (() => Promise<string | null>) | null = null;
@@ -42,6 +56,8 @@ export function configureApiAuth(getToken: () => Promise<string | null>) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = authTokenGetter ? await authTokenGetter() : null;
+
+  console.log(`API request to ${path}, token:`, token ? "present" : "missing");
 
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
@@ -101,5 +117,47 @@ export async function createDmConversation(friendClerkId: string) {
   return request<Conversation>("/conversations/dm", {
     method: "POST",
     body: JSON.stringify({ friendClerkId }),
+  });
+}
+
+export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
+  return request<FriendRequest[]>("/friends/requests");
+}
+
+export async function acceptFriendRequest(requestId: string) {
+  return request<{
+    request: FriendRequest;
+    friendship: { id: string; userAId: string; userBId: string };
+  }>("/friends/accept", {
+    method: "POST",
+    body: JSON.stringify({ requestId }),
+  });
+}
+
+export async function rejectFriendRequest(requestId: string) {
+  return request<FriendRequest>("/friends/reject", {
+    method: "POST",
+    body: JSON.stringify({ requestId }),
+  });
+}
+
+export async function getFriends(): Promise<UserSearchItem[]> {
+  return request<UserSearchItem[]>("/friends");
+}
+
+export async function registerPushToken(token: string) {
+  return request<{ id: string; userId: string; token: string }>(
+    "/notifications/register",
+    {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    },
+  );
+}
+
+export async function removePushToken(token: string) {
+  return request<{ message: string }>("/notifications/remove", {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }

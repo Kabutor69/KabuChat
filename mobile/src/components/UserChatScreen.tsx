@@ -1,6 +1,6 @@
 import { useUser } from "@clerk/clerk-expo";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,11 +10,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  getMessages,
-  sendMessage as sendMessageApi,
-  type ChatMessage,
-} from "../lib/api";
+import { getMessages, type ChatMessage } from "../lib/api";
+import { connectSocket, getSocket } from "../lib/socket";
 
 const UserChatScreen: React.FC = () => {
   const { user } = useUser();
@@ -23,27 +20,63 @@ const UserChatScreen: React.FC = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const loadMessages = useCallback(async () => {
+    if (!conversationId) return;
+    try {
+      setLoading(true);
+      const data = await getMessages(conversationId);
+      setMessages(data);
+    } catch (error) {
+      console.error("Failed to load messages", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId) return;
 
-    const fetchMessages = async () => {
+    let socket: any = null;
+
+    const setupSocket = async () => {
       try {
-        setLoading(true);
-        const data = await getMessages(conversationId);
-        setMessages(data);
+        // Load initial messages
+        await loadMessages();
+
+        // Connect to Socket.io
+        socket = await connectSocket();
+        setSocketConnected(true);
+
+        // Join conversation room
+        socket.emit("joinRoom", conversationId);
+
+        // Listen for new messages
+        socket.on("newMessage", (message: ChatMessage) => {
+          console.log("New message received:", message);
+          setMessages((prev) => {
+            // Avoid duplicates
+            if (prev.some((m) => m.id === message.id)) {
+              return prev;
+            }
+            return [...prev, message];
+          });
+        });
       } catch (error) {
-        console.error("Failed to load messages", error);
-      } finally {
-        setLoading(false);
+        console.error("Socket setup failed:", error);
+        setSocketConnected(false);
       }
     };
 
-    fetchMessages();
+    setupSocket();
 
-    const interval = setInterval(fetchMessages, 4000);
-    return () => clearInterval(interval);
-  }, [conversationId]);
+    return () => {
+      if (socket) {
+        socket.off("newMessage");
+      }
+    };
+  }, [conversationId, loadMessages]);
 
   const handleSend = async () => {
     if (!conversationId || !input.trim()) return;
@@ -53,8 +86,13 @@ const UserChatScreen: React.FC = () => {
 
     try {
       setSending(true);
-      const created = await sendMessageApi(conversationId, content);
-      setMessages((prev) => [...prev, created]);
+      const socket = getSocket();
+      if (socket && socketConnected) {
+        // Send via Socket.io
+        socket.emit("sendMessage", { conversationId, content });
+      } else {
+        throw new Error("Socket not connected");
+      }
     } catch (error) {
       console.error("Failed to send message", error);
       setInput(content);

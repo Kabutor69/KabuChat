@@ -156,3 +156,79 @@ export async function getFriends(req: Request, res: Response) {
 
   res.json(friendUsers);
 }
+
+export async function getPendingRequests(req: Request, res: Response) {
+  const clerkId = req.userId;
+
+  if (!clerkId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+  });
+
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const requests = await prisma.friendRequest.findMany({
+    where: {
+      receiverId: user.id,
+      status: "pending",
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          avatar: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  res.json(requests);
+}
+
+export async function rejectFriendRequest(req: Request, res: Response) {
+  const clerkId = req.userId;
+  const { requestId } = req.body;
+
+  if (!clerkId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!requestId) {
+    return res.status(400).json({ error: "requestId is required" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { clerkId } });
+
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const request = await prisma.friendRequest.findUnique({
+    where: { id: requestId },
+  });
+
+  if (!request) {
+    return res.status(404).json({ error: "Friend request not found" });
+  }
+
+  if (request.receiverId !== user.id) {
+    return res
+      .status(403)
+      .json({ error: "Not allowed to reject this request" });
+  }
+
+  const updatedRequest = await prisma.friendRequest.update({
+    where: { id: requestId },
+    data: { status: "rejected" },
+  });
+
+  res.json(updatedRequest);
+}

@@ -1,5 +1,6 @@
 import { ThemeProvider, useThemePreference } from "@/contexts/theme.context";
 import { configureApiAuth } from "@/lib/api";
+import { configureSocketAuth } from "@/lib/socket";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import * as Sentry from "@sentry/react-native";
@@ -34,7 +35,10 @@ Sentry.init({
 
 export default function RootLayout() {
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider
+      tokenCache={tokenCache}
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    >
       <ThemeProvider>
         <ApiAuthBridge />
         <AppShell />
@@ -53,17 +57,43 @@ function AppShell() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[conversationId]" />
+        <Stack.Screen
+          name="(modals)"
+          options={{ presentation: "modal" }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
 }
 
 function ApiAuthBridge() {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
 
   useEffect(() => {
+    console.log("ApiAuthBridge: isSignedIn =", isSignedIn);
     configureApiAuth(() => getToken());
-  }, [getToken]);
+    configureSocketAuth(() => getToken());
+  }, [getToken, isSignedIn]);
+
+  // Push notifications disabled in Expo Go (SDK 53+)
+  // To enable, build a development build with:
+  // npx expo install expo-dev-client && eas build --profile development
+  // useEffect(() => {
+  //   if (!isSignedIn) return;
+  //   const setupPushNotifications = async () => {
+  //     try {
+  //       const { registerForPushNotifications } = await import("@/lib/notifications");
+  //       const token = await registerForPushNotifications();
+  //       if (token) {
+  //         await registerPushToken(token);
+  //         console.log("Push token registered:", token);
+  //       }
+  //     } catch (error) {
+  //       console.log("Push notifications not available:", error);
+  //     }
+  //   };
+  //   setupPushNotifications();
+  // }, [isSignedIn]);
 
   return null;
 }
