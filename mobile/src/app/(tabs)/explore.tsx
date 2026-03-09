@@ -200,9 +200,8 @@ const ExploreScreen = () => {
                 <View className="rounded-2xl border border-border bg-white p-4 flex-row items-center justify-between">
                   <View className="flex-1 pr-3">
                     <Text className="text-base font-bold text-foreground">
-                      {item.username ?? "Unnamed user"}
+                      {item.username ?? "User"}
                     </Text>
-                    <Text className="mt-1 text-xs text-foreground-subtle">{item.clerkId}</Text>
                   </View>
                   <Pressable
                     onPress={() => onSendRequest(item)}
@@ -245,9 +244,8 @@ const ExploreScreen = () => {
                 <View className="rounded-2xl border border-border bg-white p-4 flex-row items-center justify-between">
                   <View className="flex-1 pr-3">
                     <Text className="text-base font-bold text-foreground">
-                      {item.username ?? "Unnamed user"}
+                      {item.username ?? "User"}
                     </Text>
-                    <Text className="mt-1 text-xs text-foreground-subtle">{item.clerkId}</Text>
                   </View>
                   <Pressable
                     onPress={() => onStartDm(item)}

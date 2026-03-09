@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
@@ -7,6 +7,7 @@ import { getConversations, type Conversation } from "../../lib/api";
 
 const ChatScreen: React.FC = () => {
   const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useUser();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +35,8 @@ const ChatScreen: React.FC = () => {
   }, [isLoaded, isSignedIn]);
 
   const renderItem = ({ item }: { item: Conversation }) => {
-    const otherUser = item.members[1] || item.members[0];
+    // Find the other user in the conversation (not the current user)
+    const otherUser = item.members.find(member => member.clerkId !== user?.id) || item.members[0];
 
     return (
       <TouchableOpacity

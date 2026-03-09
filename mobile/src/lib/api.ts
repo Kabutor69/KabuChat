@@ -30,6 +30,7 @@ export interface ChatMessage {
     username?: string | null;
     clerkId: string;
   };
+  readByClerkIds?: string[];
 }
 
 export interface FriendRequest {
@@ -99,6 +100,18 @@ export async function sendMessage(
     method: "POST",
     body: JSON.stringify({ conversationId, content }),
   });
+}
+
+export async function markConversationAsRead(conversationId: string): Promise<{
+  count: number;
+  messageIds: string[];
+}> {
+  return request<{ count: number; messageIds: string[] }>(
+    `/messages/${conversationId}/read`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export async function searchUsers(query: string): Promise<UserSearchItem[]> {

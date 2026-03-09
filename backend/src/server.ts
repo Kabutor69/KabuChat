@@ -31,10 +31,12 @@ if (!process.env.CLERK_JWT_KEY) {
 
 const io = new Server(server, {
   cors: {
-    origin: ["exp://192.168.1.66:8081", "http://192.168.1.66:8081"],
+    origin: ["exp://192.168.1.64:8081", "http://192.168.1.64:8081"],
     credentials: true,
   },
 });
+
+app.set("io", io);
 
 app.use(express.json());
 app.use(
@@ -45,6 +47,11 @@ app.use(
 );
 
 // ----------------- REST API -----------------
+// Health check endpoint
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.use("/users", userRoutes);
 app.use("/friends", friendRoutes);
 app.use("/conversations", conversationRoutes);
@@ -69,6 +76,21 @@ io.on("connection", (socket) => {
     const clerkId = socket.data.userId;
 
     try {
+      if (!conversationId || !content) {
+        socket.emit("error", { message: "Missing required fields" });
+        return;
+      }
+
+      if (typeof content !== "string" || content.trim().length === 0) {
+        socket.emit("error", { message: "Message content cannot be empty" });
+        return;
+      }
+
+      if (content.length > 5000) {
+        socket.emit("error", { message: "Message content too long" });
+        return;
+      }
+
       // Get user by clerkId
       const user = await prisma.user.findUnique({
         where: { clerkId },
@@ -81,7 +103,7 @@ io.on("connection", (socket) => {
 
       // Save message in DB
       const message = await prisma.message.create({
-        data: { content, senderId: user.id, conversationId },
+        data: { content: content.trim(), senderId: user.id, conversationId },
         include: {
           sender: {
             select: {
@@ -91,14 +113,50 @@ io.on("connection", (socket) => {
               avatar: true,
             },
           },
+          reads: {
+            include: {
+              user: {
+                select: {
+                  clerkId: true,
+                },
+              },
+            },
+          },
         },
       });
 
+      const payload = {
+        id: message.id,
+        content: message.content,
+        createdAt: message.createdAt,
+        sender: message.sender,
+        readByClerkIds: message.reads.map((read) => read.user.clerkId),
+      };
+
       // Emit to everyone in the conversation
-      io.to(conversationId).emit("newMessage", message);
+      io.to(conversationId).emit("newMessage", payload);
     } catch (error) {
+      console.error("Error sending message via socket:", error);
       socket.emit("error", { message: "Failed to send message" });
     }
+  });
+
+  socket.on("typingStart", (conversationId: string) => {
+    if (!conversationId) return;
+    socket.to(conversationId).emit("typing", {
+      conversationId,
+      clerkId: socket.data.userId,
+      isTyping: true,
+    });
+  });
+
+  socket.on("typingStop", (conversationId: string) => {
+    if (!conversationId) return;
+    socket.to(conversationId).emit("typing", {
+      conversationId,
+      clerkId: socket.data.userId,
+      isTyping: false,
+    });
   });
 
   socket.on("disconnect", () => {

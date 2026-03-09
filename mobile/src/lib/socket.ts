@@ -23,14 +23,22 @@ export async function connectSocket(): Promise<Socket> {
   socket = io(API_URL, {
     auth: { token },
     transports: ["websocket"],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 10000,
   });
 
   socket.on("connect", () => {
     console.log("Socket connected:", socket?.id);
   });
 
-  socket.on("disconnect", () => {
-    console.log("Socket disconnected");
+  socket.on("disconnect", (reason) => {
+    console.log("Socket disconnected:", reason);
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("Socket connection error:", error.message);
   });
 
   socket.on("error", (error) => {
