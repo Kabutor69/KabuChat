@@ -1,3 +1,4 @@
+import { updateUsername as apiUpdateUsername } from "@/lib/api";
 import { useUser } from "@clerk/clerk-expo";
 import * as Sentry from "@sentry/react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -51,6 +52,7 @@ export const useProfileUpdate = () => {
   const updateProfile = async (
     firstName: string,
     lastName: string,
+    username?: string,
   ): Promise<{ success: boolean; error?: string }> => {
     if (!user) {
       return { success: false, error: "User not available" };
@@ -88,11 +90,26 @@ export const useProfileUpdate = () => {
         }
       }
 
-      // Update name fields
+      // Update name fields in Clerk
       await user.update({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       });
+
+      // Update username in our DB if provided
+      if (username && username.trim()) {
+        try {
+          await apiUpdateUsername(username.trim());
+        } catch (usernameError: any) {
+          // Surface username-specific errors (e.g. already taken)
+          const msg: string =
+            usernameError?.message ?? "Failed to update username";
+          if (msg.includes("409") || msg.toLowerCase().includes("taken")) {
+            return { success: false, error: "Username is already taken" };
+          }
+          return { success: false, error: msg };
+        }
+      }
 
       Sentry.logger.info("Profile updated successfully", {
         userId: user.id,

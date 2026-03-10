@@ -31,7 +31,7 @@ if (!process.env.CLERK_JWT_KEY) {
 
 const io = new Server(server, {
   cors: {
-    origin: ["exp://192.168.1.64:8081", "http://192.168.1.64:8081"],
+    origin: ["exp://192.168.1.65:8081", "http://192.168.1.65:8081"],
     credentials: true,
   },
 });

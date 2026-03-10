@@ -1,3 +1,10 @@
+import { useProfileUpdate } from "@/hooks/useProfileUpdate";
+import { checkUsernameAvailable } from "@/lib/api";
+import { COLORS } from "@/lib/theme";
+import { useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -10,26 +17,74 @@ import {
     TextInput,
     View,
 } from "react-native";
-import { useState } from 'react'
-import { Ionicons } from "@expo/vector-icons";
-import { COLORS } from "@/lib/theme";
-import { Image } from "expo-image";
-import { useProfileUpdate } from "@/hooks/useProfileUpdate";
-import { useUser } from "@clerk/clerk-expo";
+
+const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
 interface EditProfileProps {
-  visible: boolean;
-  onClose: () => void;
+    visible: boolean;
+    onClose: () => void;
+    currentUsername?: string | null;
 }
 
-const EditProfile = ({ visible, onClose }: EditProfileProps) => {
+const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) => {
     const { user } = useUser();
     const [firstName, setFirstName] = useState(user?.firstName || "");
     const [lastName, setLastName] = useState(user?.lastName || "");
+    const [username, setUsername] = useState(currentUsername || "");
+    const [usernameStatus, setUsernameStatus] = useState<
+        "idle" | "checking" | "available" | "taken" | "invalid" | "unchanged"
+    >("unchanged");
+
     const { isSaving, selectedImage, pickImage, updateProfile, resetSelectedImage } = useProfileUpdate();
 
+    useEffect(() => {
+        if (visible) {
+            setFirstName(user?.firstName || "");
+            setLastName(user?.lastName || "");
+            setUsername(currentUsername || "");
+            setUsernameStatus("unchanged");
+        }
+    }, [visible, user, currentUsername]);
+
+    const onUsernameChange = useCallback(async (value: string) => {
+        const normalized = value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+        setUsername(normalized);
+
+        if (normalized === (currentUsername || "")) {
+            setUsernameStatus("unchanged");
+            return;
+        }
+
+        if (normalized.length < 3) {
+            setUsernameStatus(normalized.length === 0 ? "idle" : "invalid");
+            return;
+        }
+        if (!USERNAME_REGEX.test(normalized)) {
+            setUsernameStatus("invalid");
+            return;
+        }
+
+        setUsernameStatus("checking");
+        try {
+            const { available } = await checkUsernameAvailable(normalized);
+            setUsernameStatus(available ? "available" : "taken");
+        } catch {
+            setUsernameStatus("idle");
+        }
+    }, [currentUsername]);
+
     const handleSaveProfile = async () => {
-        const result = await updateProfile(firstName, lastName);
+        if (usernameStatus === "taken") {
+            Alert.alert("Error", "That username is already taken. Please choose another.");
+            return;
+        }
+        if (username && !USERNAME_REGEX.test(username)) {
+            Alert.alert("Error", "Username must be 3-20 characters: letters, numbers, underscores only");
+            return;
+        }
+
+        const usernameToSave = usernameStatus !== "unchanged" && username ? username : undefined;
+        const result = await updateProfile(firstName, lastName, usernameToSave);
         if (result.success) {
             onClose();
             Alert.alert("Success", "Profile updated successfully!");
@@ -42,6 +97,24 @@ const EditProfile = ({ visible, onClose }: EditProfileProps) => {
         resetSelectedImage();
         onClose();
     };
+
+    const usernameHintColor =
+        usernameStatus === "available"
+            ? "#22C55E"
+            : usernameStatus === "taken" || usernameStatus === "invalid"
+                ? "#EF4444"
+                : "#94A3B8";
+
+    const usernameHint =
+        usernameStatus === "available"
+            ? "✓ Username available"
+            : usernameStatus === "taken"
+                ? "✗ Already taken"
+                : usernameStatus === "invalid"
+                    ? "3–20 chars: letters, numbers, underscores only"
+                    : usernameStatus === "checking"
+                        ? "Checking…"
+                        : null;
 
     return (
         <Modal
@@ -99,6 +172,31 @@ const EditProfile = ({ visible, onClose }: EditProfileProps) => {
                                 />
                             </View>
 
+                            {/* Username */}
+                            <View>
+                                <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Username</Text>
+                                <View className="bg-slate-50 border border-slate-100 rounded-2xl px-5 h-14 flex-row items-center">
+                                    <Text style={{ color: "#94A3B8", fontWeight: "600", fontSize: 15 }}>@</Text>
+                                    <TextInput
+                                        value={username}
+                                        onChangeText={onUsernameChange}
+                                        placeholderTextColor={COLORS.textSubtle}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        placeholder="your_username"
+                                        style={{ flex: 1, marginLeft: 4, fontWeight: "700", color: "#334155", height: 56 }}
+                                    />
+                                    {usernameStatus === "checking" && (
+                                        <ActivityIndicator size="small" color="#94A3B8" />
+                                    )}
+                                </View>
+                                {usernameHint ? (
+                                    <Text style={{ color: usernameHintColor, fontSize: 11, marginTop: 4, marginLeft: 4 }}>
+                                        {usernameHint}
+                                    </Text>
+                                ) : null}
+                            </View>
+
                             <View>
                                 <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</Text>
                                 <View className="bg-slate-100/50 border border-slate-100 rounded-2xl px-5 h-14 justify-center">
@@ -119,7 +217,7 @@ const EditProfile = ({ visible, onClose }: EditProfileProps) => {
 
                         <Pressable
                             onPress={handleSaveProfile}
-                            disabled={isSaving}
+                            disabled={isSaving || usernameStatus === "taken" || usernameStatus === "invalid"}
                             className="flex-1 py-4 rounded-full bg-primary items-center shadow-lg shadow-primary/30"
                         >
                             {isSaving ? (

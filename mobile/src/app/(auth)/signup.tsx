@@ -1,9 +1,10 @@
 import useSocialAuth from "@/hooks/useSocialAuth";
+import { checkUsernameAvailable } from "@/lib/api";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,6 +17,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+
 const SignUpScreen = () => {
   const router = useRouter();
   const { handleEmailSignUp, handleSocialAuth, loadingStrategy } =
@@ -23,18 +26,57 @@ const SignUpScreen = () => {
 
   // Form State
   const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
+  // Username availability state
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+
   // UI State
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const onUsernameChange = useCallback(
+    async (value: string) => {
+      const normalized = value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+      setUsername(normalized);
+
+      if (normalized.length < 3) {
+        setUsernameStatus(normalized.length === 0 ? "idle" : "invalid");
+        return;
+      }
+      if (!USERNAME_REGEX.test(normalized)) {
+        setUsernameStatus("invalid");
+        return;
+      }
+
+      setUsernameStatus("checking");
+      try {
+        const { available } = await checkUsernameAvailable(normalized);
+        setUsernameStatus(available ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    },
+    [],
+  );
+
   const onEmailSignUp = async () => {
-    if (!fullName || !email || !password || !confirmPassword) {
+    if (!fullName || !username || !email || !password || !confirmPassword) {
       setError("Please fill in all fields");
+      return;
+    }
+    if (!USERNAME_REGEX.test(username)) {
+      setError("Username must be 3-20 characters: letters, numbers, underscores only");
+      return;
+    }
+    if (usernameStatus === "taken") {
+      setError("That username is already taken. Please choose another.");
       return;
     }
     if (password !== confirmPassword) {
@@ -55,7 +97,7 @@ const SignUpScreen = () => {
       success,
       needsVerification,
       error: authError,
-    } = await handleEmailSignUp(email, password, firstName, lastName);
+    } = await handleEmailSignUp(email, password, firstName, lastName, username);
 
     if (needsVerification) {
       router.push({ pathname: "./verify-email", params: { email } });
@@ -63,6 +105,24 @@ const SignUpScreen = () => {
       setError(authError || "Sign up failed");
     }
   };
+
+  const usernameHintColor =
+    usernameStatus === "available"
+      ? "#22C55E"
+      : usernameStatus === "taken" || usernameStatus === "invalid"
+        ? "#EF4444"
+        : "#94A3B8";
+
+  const usernameHint =
+    usernameStatus === "available"
+      ? "✓ Username available"
+      : usernameStatus === "taken"
+        ? "✗ Username already taken"
+        : usernameStatus === "invalid"
+          ? "3-20 chars: letters, numbers, underscores only"
+          : usernameStatus === "checking"
+            ? "Checking…"
+            : null;
 
   return (
     <View className="flex-1 bg-background">
@@ -142,6 +202,30 @@ const SignUpScreen = () => {
                   autoCapitalize="words"
                   placeholderTextColor="#94A3B8"
                 />
+              </View>
+
+              {/* Username */}
+              <View>
+                <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-13 shadow-sm shadow-black/5">
+                  <Text style={{ color: "#94A3B8", fontSize: 16, fontWeight: "600" }}>@</Text>
+                  <TextInput
+                    placeholder="username"
+                    className="flex-1 ml-2 h-12 text-foreground"
+                    value={username}
+                    onChangeText={onUsernameChange}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholderTextColor="#94A3B8"
+                  />
+                  {usernameStatus === "checking" && (
+                    <ActivityIndicator size="small" color="#94A3B8" />
+                  )}
+                </View>
+                {usernameHint ? (
+                  <Text style={{ color: usernameHintColor, fontSize: 11, marginTop: 4, marginLeft: 4 }}>
+                    {usernameHint}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Email */}

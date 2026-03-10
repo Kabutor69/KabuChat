@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getClerkUserProfile } from "../lib/clerk.js";
 import { prisma } from "../lib/prisma.js";
 
 export async function sendFriendRequest(req: Request, res: Response) {
@@ -163,7 +164,22 @@ export async function getFriends(req: Request, res: Response) {
     },
   });
 
-  res.json(friendUsers);
+  const enriched = await Promise.all(
+    friendUsers.map(async (friend) => {
+      if (friend.username) return friend;
+      const profile = await getClerkUserProfile(friend.clerkId);
+      if (profile?.name) {
+        await prisma.user.update({
+          where: { clerkId: friend.clerkId },
+          data: { username: profile.name },
+        });
+        return { ...friend, username: profile.name };
+      }
+      return friend;
+    }),
+  );
+
+  res.json(enriched);
 }
 
 export async function getPendingRequests(req: Request, res: Response) {
@@ -240,4 +256,81 @@ export async function rejectFriendRequest(req: Request, res: Response) {
   });
 
   res.json(updatedRequest);
+}
+
+export async function cancelFriendRequest(req: Request, res: Response) {
+  const senderClerkId = req.userId;
+  const { receiverClerkId } = req.body;
+
+  if (!senderClerkId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!receiverClerkId) {
+    return res.status(400).json({ error: "receiverClerkId is required" });
+  }
+
+  const sender = await prisma.user.findUnique({ where: { clerkId: senderClerkId } });
+  const receiver = await prisma.user.findUnique({ where: { clerkId: receiverClerkId } });
+
+  if (!sender || !receiver) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const request = await prisma.friendRequest.findFirst({
+    where: {
+      senderId: sender.id,
+      receiverId: receiver.id,
+      status: "pending",
+    },
+  });
+
+  if (!request) {
+    return res.status(404).json({ error: "Pending friend request not found" });
+  }
+
+  await prisma.friendRequest.delete({
+    where: { id: request.id },
+  });
+
+  res.json({ success: true, message: "Friend request cancelled" });
+}
+
+export async function removeFriend(req: Request, res: Response) {
+  const clerkId = req.userId;
+  const { friendClerkId } = req.body;
+
+  if (!clerkId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!friendClerkId) {
+    return res.status(400).json({ error: "friendClerkId is required" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { clerkId } });
+  const friend = await prisma.user.findUnique({ where: { clerkId: friendClerkId } });
+
+  if (!user || !friend) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const friendship = await prisma.friend.findFirst({
+    where: {
+      OR: [
+        { userAId: user.id, userBId: friend.id },
+        { userAId: friend.id, userBId: user.id },
+      ],
+    },
+  });
+
+  if (!friendship) {
+    return res.status(404).json({ error: "Friendship not found" });
+  }
+
+  await prisma.friend.delete({
+    where: { id: friendship.id },
+  });
+
+  res.json({ success: true, message: "Friend removed" });
 }

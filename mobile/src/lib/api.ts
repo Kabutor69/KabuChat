@@ -19,6 +19,8 @@ export interface UserSearchItem {
   clerkId: string;
   username?: string | null;
   avatar?: string | null;
+  relationshipStatus?: "none" | "pending" | "friends";
+  requestId?: string;
 }
 
 export interface ChatMessage {
@@ -114,6 +116,10 @@ export async function markConversationAsRead(conversationId: string): Promise<{
   );
 }
 
+export async function getMe(): Promise<UserSearchItem & { username: string | null }> {
+  return request<UserSearchItem & { username: string | null }>("/users/me");
+}
+
 export async function searchUsers(query: string): Promise<UserSearchItem[]> {
   const encoded = encodeURIComponent(query.trim());
   return request<UserSearchItem[]>(`/users/search?q=${encoded}`);
@@ -154,6 +160,20 @@ export async function rejectFriendRequest(requestId: string) {
   });
 }
 
+export async function cancelFriendRequest(receiverClerkId: string) {
+  return request<{ success: boolean; message: string }>("/friends/request/cancel", {
+    method: "POST",
+    body: JSON.stringify({ receiverClerkId }),
+  });
+}
+
+export async function removeFriend(friendClerkId: string) {
+  return request<{ success: boolean; message: string }>("/friends/remove", {
+    method: "POST",
+    body: JSON.stringify({ friendClerkId }),
+  });
+}
+
 export async function getFriends(): Promise<UserSearchItem[]> {
   return request<UserSearchItem[]>("/friends");
 }
@@ -172,5 +192,21 @@ export async function removePushToken(token: string) {
   return request<{ message: string }>("/notifications/remove", {
     method: "POST",
     body: JSON.stringify({ token }),
+  });
+}
+
+export async function checkUsernameAvailable(
+  username: string,
+): Promise<{ available: boolean }> {
+  const encoded = encodeURIComponent(username.trim().toLowerCase());
+  return request<{ available: boolean }>(`/users/username/check?q=${encoded}`);
+}
+
+export async function updateUsername(
+  username: string,
+): Promise<{ username: string }> {
+  return request<{ username: string }>("/users/username", {
+    method: "PUT",
+    body: JSON.stringify({ username }),
   });
 }

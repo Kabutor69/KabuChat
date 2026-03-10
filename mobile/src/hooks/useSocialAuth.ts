@@ -20,16 +20,48 @@ const useSocialAuth = () => {
     if (loadingStrategy) return;
     setLoadingStrategy(strategy);
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
-      if (!createdSessionId || !setActive) {
-        const provider = strategy === "oauth_google" ? "Google" : "GitHub";
-        Alert.alert(
-          "sign-in failed",
-          `${provider} sign-in failed. Please try again`,
-        );
+      const { createdSessionId, setActive, signUp } = await startSSOFlow({ strategy });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
         return;
       }
-      await setActive({ session: createdSessionId });
+
+      // Handle missing requirements (e.g. unique username)
+      if (signUp?.status === "missing_requirements") {
+        const baseUsername = `${signUp.firstName || ""}${signUp.lastName || ""}`
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "");
+
+        let suffix = "";
+        let usernameToTry = baseUsername.slice(0, 15) || "user";
+
+        while (true) {
+          try {
+            const finalUsername = `${usernameToTry}${suffix}`;
+            const result = await signUp.update({ username: finalUsername });
+            if (result.status === "complete" && result.createdSessionId) {
+              if (setActiveSignUp) {
+                await setActiveSignUp({ session: result.createdSessionId });
+              }
+              return;
+            }
+            break;
+          } catch (err: any) {
+            if (err?.errors?.[0]?.code === "form_identifier_exists") {
+              suffix = Math.floor(Math.random() * 10000).toString();
+              continue;
+            }
+            throw err;
+          }
+        }
+      }
+
+      const provider = strategy === "oauth_google" ? "Google" : "GitHub";
+      Alert.alert(
+        "sign-in failed",
+        `${provider} sign-in failed. Please try again`,
+      );
     } catch (error) {
       console.log("💥 Error in social auth:", error);
       const provider = strategy === "oauth_google" ? "Google" : "GitHub";
@@ -90,6 +122,7 @@ const useSocialAuth = () => {
     password: string,
     firstName?: string,
     lastName?: string,
+    username?: string,
   ): Promise<{
     success: boolean;
     error?: string;
@@ -108,6 +141,7 @@ const useSocialAuth = () => {
         password,
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
+        ...(username && { username }),
       });
 
       // Send Email Verify Email

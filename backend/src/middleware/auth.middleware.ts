@@ -1,7 +1,7 @@
 import { verifyToken } from "@clerk/backend";
 import { NextFunction, Request, Response } from "express";
 import { Socket } from "socket.io";
-import { getClerkUserProfile } from "../lib/clerk.js";
+import { clerkClient, generateUniqueUsername, getClerkUserProfile } from "../lib/clerk.js";
 import { prisma } from "../lib/prisma.js";
 
 declare global {
@@ -31,19 +31,60 @@ function getErrorMessage(err: unknown) {
 async function ensureUserExists(clerkId: string) {
   const profile = await getClerkUserProfile(clerkId);
 
+  // Check if user already exists in DB
+  const existingUser = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true, username: true },
+  });
+
   const updateData: { username?: string; avatar?: string } = {};
-  if (profile?.username) updateData.username = profile.username;
+  if (profile?.name) updateData.username = profile.name;
   if (profile?.avatar) updateData.avatar = profile.avatar;
 
-  await prisma.user.upsert({
-    where: { clerkId },
-    update: updateData,
-    create: {
+  if (existingUser) {
+    // Only update if something changed
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({ where: { clerkId }, data: updateData });
+    }
+    return;
+  }
+
+  // New user — generate a unique username if Clerk has no username set
+  let username = profile?.name ?? null;
+  let didGenerateUsername = false;
+
+  if (!username) {
+    // Shouldn't happen often but be safe
+    username = await generateUniqueUsername("user");
+    didGenerateUsername = true;
+  } else {
+    // Check if this name is already taken; if so, make it unique
+    const taken = await prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+    if (taken) {
+      username = await generateUniqueUsername(username);
+      didGenerateUsername = true;
+    }
+  }
+
+  await prisma.user.create({
+    data: {
       clerkId,
-      username: profile?.username ?? null,
+      username,
       avatar: profile?.avatar ?? null,
     },
   });
+
+  // Push the generated username back to Clerk so it's consistent across logins
+  if (didGenerateUsername && clerkClient) {
+    try {
+      await clerkClient.users.updateUser(clerkId, { username });
+    } catch (err) {
+      console.warn(`Failed to update Clerk username for ${clerkId}:`, err);
+    }
+  }
 }
 
 // Express middleware

@@ -1,12 +1,13 @@
 import EditProfile from "@/components/EditProfile";
 import { useThemePreference, type ThemePreference } from "@/contexts/theme.context";
+import { getMe } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sentry from "@sentry/react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -26,16 +27,23 @@ const MENU_ITEMS = [
 const STATS = [
   { label: "Messages", value: "127", icon: "chatbubble-ellipses" },
   { label: "Friends", value: "42", icon: "people" },
-  { label: "Groups", value: "9", icon: "people-circle" }, 
+  { label: "Groups", value: "9", icon: "people-circle" },
 ];
 
 const ProfileScreen = () => {
   const { signOut } = useAuth();
   const { user } = useUser();
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [dbUsername, setDbUsername] = useState<string | null>(null);
   const { preference, setPreference, resolvedTheme } = useThemePreference();
 
-   const handleMenuItemPress = (label: string) => {
+  useEffect(() => {
+    getMe().then((data: any) => {
+      if (data?.username) setDbUsername(data.username);
+    }).catch(() => { });
+  }, [editModalVisible]); // re-fetch after edit modal closes
+
+  const handleMenuItemPress = (label: string) => {
     Alert.alert(label, `${label} feature coming soon!`);
   };
 
@@ -47,14 +55,14 @@ const ProfileScreen = () => {
       </View>
 
       <SafeAreaView className="flex-1 z-10" edges={['top']}>
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
           {/* Header */}
           <View className="flex-row items-center justify-between px-6 pt-2 pb-4 z-50">
             <Text className="text-3xl font-black text-foreground tracking-tighter">Profile</Text>
-            <Pressable 
+            <Pressable
               onPress={() => setEditModalVisible(true)}
               hitSlop={20}
               className="w-12 h-12 rounded-2xl bg-white items-center justify-center shadow-md border border-slate-100 active:scale-95"
@@ -80,6 +88,9 @@ const ProfileScreen = () => {
               <Text className="text-2xl font-black text-foreground tracking-tight">
                 {user?.fullName || user?.username || "User"}
               </Text>
+              {dbUsername ? (
+                <Text className="text-sm font-bold text-primary mt-0.5">@{dbUsername}</Text>
+              ) : null}
               <View className="mt-1 bg-primary/10 px-4 py-1.5 rounded-full flex-row items-center">
                 <Ionicons name="mail" size={12} color={COLORS.primary} />
                 <Text className="ml-2 text-[11px] font-bold text-primary">
@@ -185,7 +196,11 @@ const ProfileScreen = () => {
         </ScrollView>
       </SafeAreaView>
 
-      <EditProfile visible={editModalVisible} onClose={() => setEditModalVisible(false)} />
+      <EditProfile
+        visible={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        currentUsername={dbUsername}
+      />
     </View>
   );
 };
