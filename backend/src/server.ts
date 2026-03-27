@@ -1,4 +1,3 @@
-// Load environment variables BEFORE any imports
 require("dotenv").config();
 
 import cors from "cors";
@@ -41,7 +40,7 @@ app.set("io", io);
 app.use(express.json());
 app.use(
   cors({
-    origin: true, // Allow all origins in development
+    origin: true,
     credentials: true,
   }),
 );
@@ -130,6 +129,7 @@ io.on("connection", (socket) => {
         content: message.content,
         createdAt: message.createdAt,
         sender: message.sender,
+        conversationId,
         readByClerkIds: message.reads.map((read) => read.user.clerkId),
       };
 
@@ -166,7 +166,7 @@ io.on("connection", (socket) => {
 
 // ----------------- Start Server -----------------
 const PORT = Number(process.env.PORT) || 5000;
-const HOST = "0.0.0.0"; 
+const HOST = "0.0.0.0";
 server.listen(PORT, HOST, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(

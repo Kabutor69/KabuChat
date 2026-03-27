@@ -16,10 +16,24 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     currentUserId,
     onPress,
 }) => {
-    // Find the other user in the conversation (not the current user)
     const otherUser =
         conversation.members.find((member) => member.clerkId !== currentUserId) ||
         conversation.members[0];
+
+    const isUnread = 
+        conversation.lastMessage?.sender?.clerkId &&
+        conversation.lastMessage.sender.clerkId !== currentUserId &&
+        !(conversation.lastMessage.readByClerkIds?.includes(currentUserId ?? ""));
+
+    const isMe = conversation.lastMessage?.sender?.clerkId === currentUserId;
+    const senderName = isMe 
+        ? "You" 
+        : conversation.members.find(m => m.clerkId === conversation.lastMessage?.sender?.clerkId)?.name?.split(" ")[0] || "Someone";
+    
+    // We only explicitly prepend the sender name in group chats
+    // Or in DMs if it's "You:"
+    const showPrefix = conversation.lastMessage && (conversation.isGroup || isMe);
+    const prefix = showPrefix ? `${senderName}: ` : "";
 
     return (
         <Pressable
@@ -54,7 +68,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                             : otherUser?.name ?? "Unknown user"}
                     </Text>
                     {conversation.lastMessage?.createdAt && (
-                        <Text className="text-[10px] font-bold text-slate-400">
+                        <Text className={`text-[10px] font-bold ${isUnread ? 'text-primary' : 'text-slate-400'}`}>
                             {new Date(conversation.lastMessage.createdAt).toLocaleTimeString(
                                 [],
                                 { hour: "2-digit", minute: "2-digit" }
@@ -65,17 +79,21 @@ export const HomeCard: React.FC<HomeCardProps> = ({
 
                 <Text
                     numberOfLines={1}
-                    className="text-sm font-bold text-slate-500 tracking-tight"
+                    className={`text-sm tracking-tight ${isUnread ? 'font-black text-slate-800' : 'font-bold text-slate-500'}`}
                 >
                     {conversation.lastMessage
-                        ? conversation.lastMessage.content
+                        ? `${prefix}${conversation.lastMessage.content}`
                         : "No messages yet"}
                 </Text>
             </View>
 
             {/* Action/chevron Section */}
             <View className="ml-3 justify-center items-center">
-                <Ionicons name="chevron-forward" size={16} color="#E2E8F0" />
+                {isUnread ? (
+                   <View className="w-3 h-3 rounded-full bg-primary" />
+                ) : (
+                   <Ionicons name="chevron-forward" size={16} color="#E2E8F0" />
+                )}
             </View>
         </Pressable>
     );

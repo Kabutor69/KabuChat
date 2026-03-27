@@ -11,6 +11,8 @@ export interface Conversation {
   lastMessage?: {
     content: string;
     createdAt: string;
+    sender?: { clerkId: string };
+    readByClerkIds?: string[];
   } | null;
 }
 
@@ -65,6 +67,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      "Cache-Control": "no-cache",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },

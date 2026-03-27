@@ -1,22 +1,26 @@
 import { useUser } from "@clerk/clerk-expo";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useState } from "react";
+import { Image } from "expo-image";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-    getMessages,
-    markConversationAsRead,
-    type ChatMessage,
+  getMessages,
+  markConversationAsRead,
+  getConversations,
+  type ChatMessage,
+  type Conversation,
 } from "../lib/api";
 import { connectSocket, getSocket } from "../lib/socket";
 
@@ -24,6 +28,7 @@ const UserChatScreen: React.FC = () => {
   const { user } = useUser();
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +38,9 @@ const UserChatScreen: React.FC = () => {
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
+
+  const flatListRef = useRef<FlatList>(null);
+  const socketHandlersRef = useRef<any>(null);
 
   const loadMessages = useCallback(async () => {
     if (!conversationId) return;
@@ -72,7 +80,7 @@ const UserChatScreen: React.FC = () => {
 
         socket.emit("joinRoom", conversationId);
 
-        socket.on("newMessage", (message: ChatMessage) => {
+        const handleNewMessage = (message: ChatMessage) => {
           setMessages((prev) => {
             if (prev.some((item) => item.id === message.id)) {
               return prev;
@@ -83,28 +91,23 @@ const UserChatScreen: React.FC = () => {
           if (message.sender.clerkId !== user?.id) {
             void markRead();
           }
-        });
+        };
 
-        socket.on(
-          "typing",
-          (payload: {
+        const handleTyping = (payload: {
             conversationId: string;
             clerkId: string;
             isTyping: boolean;
-          }) => {
+        }) => {
             if (payload.conversationId !== conversationId) return;
             if (payload.clerkId === user?.id) return;
             setIsPeerTyping(payload.isTyping);
-          },
-        );
+        };
 
-        socket.on(
-          "messagesRead",
-          (payload: {
+        const handleMessagesRead = (payload: {
             conversationId: string;
             readerClerkId: string;
             messageIds: string[];
-          }) => {
+        }) => {
             if (payload.conversationId !== conversationId) return;
 
             setMessages((prev) =>
@@ -124,20 +127,33 @@ const UserChatScreen: React.FC = () => {
                 };
               }),
             );
-          },
-        );
+        };
 
-        // Handle reconnection
-        socket.on("connect", () => {
+        const handleConnect = () => {
           console.log("Socket reconnected, rejoining room");
           setSocketConnected(true);
           socket.emit("joinRoom", conversationId);
-        });
+        };
 
-        socket.on("disconnect", () => {
+        const handleDisconnect = () => {
           console.log("Socket disconnected");
           setSocketConnected(false);
-        });
+        };
+
+        socket.on("newMessage", handleNewMessage);
+        socket.on("typing", handleTyping);
+        socket.on("messagesRead", handleMessagesRead);
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+        
+        // Save handlers to ref so we can specifically clear them later
+        socketHandlersRef.current = {
+            newMessage: handleNewMessage,
+            typing: handleTyping,
+            messagesRead: handleMessagesRead,
+            connect: handleConnect,
+            disconnect: handleDisconnect,
+        };
       } catch (error) {
         console.error("Socket setup failed:", error);
         setSocketConnected(false);
@@ -147,15 +163,30 @@ const UserChatScreen: React.FC = () => {
     setupSocket();
 
     return () => {
-      if (socket) {
-        socket.off("newMessage");
-        socket.off("typing");
-        socket.off("messagesRead");
-        socket.off("connect");
-        socket.off("disconnect");
+      const handlers = socketHandlersRef.current;
+      if (socket && handlers) {
+        if (handlers.newMessage) socket.off("newMessage", handlers.newMessage);
+        if (handlers.typing) socket.off("typing", handlers.typing);
+        if (handlers.messagesRead) socket.off("messagesRead", handlers.messagesRead);
+        if (handlers.connect) socket.off("connect", handlers.connect);
+        if (handlers.disconnect) socket.off("disconnect", handlers.disconnect);
       }
     };
   }, [conversationId, loadMessages, markRead, user?.id]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const fetchConv = async () => {
+      try {
+        const convs = await getConversations();
+        const current = convs.find(c => c.id === conversationId);
+        if (current) setConversation(current);
+      } catch (e) {
+        console.error("Failed to load conversation details", e);
+      }
+    };
+    void fetchConv();
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -195,13 +226,16 @@ const UserChatScreen: React.FC = () => {
 
     const content = input.trim();
     setInput("");
-
+    Keyboard.dismiss();
     try {
       setSending(true);
       const socket = getSocket();
       if (socket && socketConnected) {
         socket.emit("sendMessage", { conversationId, content });
         socket.emit("typingStop", conversationId);
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        }
       } else {
         throw new Error("Socket not connected");
       }
@@ -213,53 +247,80 @@ const UserChatScreen: React.FC = () => {
     }
   };
 
+  const lastReadMessageId = useMemo(() => {
+    const reversed = [...messages].reverse();
+    return reversed.find(m => m.sender.clerkId === user?.id && (m.readByClerkIds?.length ?? 0) > 0)?.id;
+  }, [messages, user?.id]);
+
+  const peer = conversation?.members.find(m => m.clerkId !== user?.id);
+  const headerName = conversation?.isGroup ? conversation.name : (peer?.name || "Chat");
+  const headerAvatar = conversation?.isGroup ? null : peer?.avatar;
+
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
         {/* Header */}
-        <View className="flex-row items-center px-4 py-3 border-b border-slate-100 bg-white shadow-sm z-10 w-full mb-2">
-            <Pressable 
-                onPress={() => router.back()} 
-                className="h-10 w-10 rounded-full bg-slate-50 items-center justify-center mr-3"
-            >
-                <Ionicons name="chevron-back" size={20} color="#64748B" />
-            </Pressable>
-            <View className="flex-1">
-                <Text className="text-xl font-black text-slate-800">Messages</Text>
+        <View className="flex-row items-center px-4 py-3 border-b border-slate-200 bg-white shadow-sm z-10 w-full mb-1">
+          <Pressable
+            onPress={() => router.back()}
+            className="h-10 w-10 active:opacity-70 items-center justify-center mr-1"
+            hitSlop={10}
+          >
+            <Ionicons name="chevron-back" size={26} color="#334155" />
+          </Pressable>
+          
+          <View className="flex-1 flex-row items-center">
+            {headerAvatar ? (
+              <Image 
+                source={{ uri: headerAvatar }} 
+                style={{ width: 36, height: 36, borderRadius: 18 }} 
+                contentFit="cover"
+              />
+            ) : (
+              <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
+                <Ionicons name="person" size={18} color="#94A3B8" />
+              </View>
+            )}
+            
+            <View className="ml-3 flex-1 flex-col justify-center">
+              <Text className="text-lg font-bold text-slate-800" numberOfLines={1}>{headerName}</Text>
             </View>
+          </View>
         </View>
 
         {loading && messages.length === 0 ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator />
+            <ActivityIndicator color="#6366F1" />
           </View>
         ) : null}
 
         <FlatList
-          data={messages}
+          ref={flatListRef}
+          data={[...messages].reverse()}
+          inverted={true}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, paddingTop: 8 }}
           renderItem={({ item }) => {
             const isMe = item.sender.clerkId === user?.id;
+            const isLastRead = isMe && item.id === lastReadMessageId;
+
             return (
               <View
-                className={`max-w-[80%] mb-3 px-4 py-3 ${
-                  isMe
-                    ? "self-end bg-primary rounded-2xl rounded-tr-sm"
-                    : "self-start bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm"
-                }`}
+                className={`max-w-[75%] mb-2 px-3.5 py-2.5 ${isMe
+                    ? "self-end bg-primary rounded-2xl rounded-tr-sm shadow-sm"
+                    : "self-start bg-white border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm"
+                  }`}
               >
                 <Text
-                  className={isMe ? "text-white font-medium" : "text-slate-800 font-medium"}
+                  className={isMe ? "text-white text-[15px] leading-5" : "text-slate-800 text-[15px] leading-5"}
                 >
                   {item.content}
                 </Text>
-                {isMe &&
-                (item.readByClerkIds?.length ?? 0) > 0 ? (
-                  <Text className="text-white/70 mt-1 text-[10px] text-right font-medium tracking-wide text-amber-50">
+                {isLastRead ? (
+                  <Text className="text-white/70 mt-1 text-[10px] text-right font-medium tracking-wide">
                     Seen
                   </Text>
                 ) : null}
@@ -270,32 +331,33 @@ const UserChatScreen: React.FC = () => {
         />
 
         {isPeerTyping ? (
-          <View className="px-4 mb-2">
+          <View className="px-5 mb-2">
             <Text className="text-xs font-semibold text-slate-400 italic">Typing...</Text>
           </View>
         ) : null}
 
-        <View className="flex-row items-center px-4 py-3 bg-white border-t border-slate-50">
-          <View className="flex-1 bg-slate-50 border border-slate-100 rounded-full flex-row items-center px-5 h-12">
+        <View className="flex-row items-end px-3 py-2.5 bg-white border-t border-slate-200">
+          <View className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl flex-row items-center px-4 min-h-[44px] max-h-32 mb-1">
             <TextInput
               value={input}
               onChangeText={handleInputChange}
-              placeholder="Type a message..."
+              placeholder="Message..."
               placeholderTextColor="#94A3B8"
-              className="flex-1 font-medium text-slate-700 h-full"
+              multiline={true}
+              className="flex-1 font-medium text-slate-800 text-[15px] py-2.5"
+              style={{ textAlignVertical: "center" }}
             />
           </View>
           <Pressable
             onPress={handleSend}
             disabled={sending || !input.trim()}
-            className={`ml-3 w-12 h-12 rounded-full items-center justify-center shadow-lg ${
-               sending || !input.trim() ? "bg-slate-100 shadow-none border border-slate-100" : "bg-primary shadow-primary/30"
-            }`}
+            className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-slate-100" : "bg-primary active:opacity-80"
+              }`}
           >
             {sending ? (
               <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} size="small" />
             ) : (
-              <Ionicons name="send" size={18} color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} style={{ marginLeft: 3 }} />
+              <Ionicons name="paper-plane" size={20} color={sending || !input.trim() ? "#A1A1AA" : "#FFFFFF"} style={{ marginLeft: 2, marginTop: 1 }} />
             )}
           </Pressable>
         </View>

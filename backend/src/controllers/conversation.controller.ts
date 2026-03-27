@@ -53,6 +53,10 @@ export async function createDMConversation(req: Request, res: Response) {
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
+          include: {
+            sender: { select: { clerkId: true } },
+            reads: { include: { user: { select: { clerkId: true } } } },
+          },
         },
       },
     });
@@ -72,6 +76,8 @@ export async function createDMConversation(req: Request, res: Response) {
           ? {
               content: existing.messages[0].content,
               createdAt: existing.messages[0].createdAt,
+              sender: { clerkId: existing.messages[0].sender.clerkId },
+              readByClerkIds: existing.messages[0].reads.map((r: any) => r.user.clerkId),
             }
           : null,
       });
@@ -146,6 +152,10 @@ export async function getUserConversations(req: Request, res: Response) {
             createdAt: "desc",
           },
           take: 1,
+          include: {
+            sender: { select: { clerkId: true } },
+            reads: { include: { user: { select: { clerkId: true } } } },
+          },
         },
       },
       orderBy: {
@@ -168,6 +178,8 @@ export async function getUserConversations(req: Request, res: Response) {
           ? {
               content: conversation.messages[0].content,
               createdAt: conversation.messages[0].createdAt,
+              sender: { clerkId: conversation.messages[0].sender.clerkId },
+              readByClerkIds: conversation.messages[0].reads.map((r: any) => r.user.clerkId),
             }
           : null,
       })),
