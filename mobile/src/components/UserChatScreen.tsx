@@ -1,9 +1,12 @@
 import { useUser } from "@clerk/clerk-expo";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     Text,
     TextInput,
@@ -19,6 +22,7 @@ import { connectSocket, getSocket } from "../lib/socket";
 
 const UserChatScreen: React.FC = () => {
   const { user } = useUser();
+  const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -210,81 +214,92 @@ const UserChatScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      {loading && messages.length === 0 ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator />
-        </View>
-      ) : null}
-
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View
-            style={{
-              alignSelf:
-                item.sender.clerkId === user?.id ? "flex-end" : "flex-start",
-              maxWidth: "80%",
-              marginBottom: 10,
-              backgroundColor:
-                item.sender.clerkId === user?.id ? "#6366F1" : "#E5E7EB",
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              borderRadius: 14,
-            }}
-          >
-            <Text
-              style={{ color: item.sender.clerkId === user?.id ? "white" : "#111827" }}
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1"
+      >
+        {/* Header */}
+        <View className="flex-row items-center px-4 py-3 border-b border-slate-100 bg-white shadow-sm z-10 w-full mb-2">
+            <Pressable 
+                onPress={() => router.back()} 
+                className="h-10 w-10 rounded-full bg-slate-50 items-center justify-center mr-3"
             >
-              {item.content}
-            </Text>
-            {item.sender.clerkId === user?.id &&
-            (item.readByClerkIds?.length ?? 0) > 0 ? (
-              <Text style={{ color: "#E5E7EB", marginTop: 4, fontSize: 11 }}>
-                Seen
-              </Text>
-            ) : null}
+                <Ionicons name="chevron-back" size={20} color="#64748B" />
+            </Pressable>
+            <View className="flex-1">
+                <Text className="text-xl font-black text-slate-800">Messages</Text>
+            </View>
+        </View>
+
+        {loading && messages.length === 0 ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator />
           </View>
-        )}
-        style={{ marginBottom: 16 }}
-      />
+        ) : null}
 
-      {isPeerTyping ? (
-        <Text style={{ color: "#6B7280", marginBottom: 8 }}>Typing...</Text>
-      ) : null}
-
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <TextInput
-          value={input}
-          onChangeText={handleInputChange}
-          placeholder="Type a message"
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#ccc",
-            padding: 8,
-            borderRadius: 8,
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+          renderItem={({ item }) => {
+            const isMe = item.sender.clerkId === user?.id;
+            return (
+              <View
+                className={`max-w-[80%] mb-3 px-4 py-3 ${
+                  isMe
+                    ? "self-end bg-primary rounded-2xl rounded-tr-sm"
+                    : "self-start bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm"
+                }`}
+              >
+                <Text
+                  className={isMe ? "text-white font-medium" : "text-slate-800 font-medium"}
+                >
+                  {item.content}
+                </Text>
+                {isMe &&
+                (item.readByClerkIds?.length ?? 0) > 0 ? (
+                  <Text className="text-white/70 mt-1 text-[10px] text-right font-medium tracking-wide text-amber-50">
+                    Seen
+                  </Text>
+                ) : null}
+              </View>
+            );
           }}
+          style={{ flex: 1 }}
         />
-        <Pressable
-          onPress={handleSend}
-          disabled={sending}
-          style={{
-            marginLeft: 8,
-            backgroundColor: "#6366F1",
-            height: 40,
-            paddingHorizontal: 14,
-            borderRadius: 8,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: "white", fontWeight: "700" }}>
-            {sending ? "..." : "Send"}
-          </Text>
-        </Pressable>
-      </View>
+
+        {isPeerTyping ? (
+          <View className="px-4 mb-2">
+            <Text className="text-xs font-semibold text-slate-400 italic">Typing...</Text>
+          </View>
+        ) : null}
+
+        <View className="flex-row items-center px-4 py-3 bg-white border-t border-slate-50">
+          <View className="flex-1 bg-slate-50 border border-slate-100 rounded-full flex-row items-center px-5 h-12">
+            <TextInput
+              value={input}
+              onChangeText={handleInputChange}
+              placeholder="Type a message..."
+              placeholderTextColor="#94A3B8"
+              className="flex-1 font-medium text-slate-700 h-full"
+            />
+          </View>
+          <Pressable
+            onPress={handleSend}
+            disabled={sending || !input.trim()}
+            className={`ml-3 w-12 h-12 rounded-full items-center justify-center shadow-lg ${
+               sending || !input.trim() ? "bg-slate-100 shadow-none border border-slate-100" : "bg-primary shadow-primary/30"
+            }`}
+          >
+            {sending ? (
+              <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} size="small" />
+            ) : (
+              <Ionicons name="send" size={18} color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} style={{ marginLeft: 3 }} />
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

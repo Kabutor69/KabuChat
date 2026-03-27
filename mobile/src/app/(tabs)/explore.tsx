@@ -48,7 +48,11 @@ const ExploreScreen = () => {
   const filteredFriends = useMemo(() => {
     if (!friendsQuery.trim()) return friends;
     const lower = friendsQuery.toLowerCase();
-    return friends.filter((f) => f.username?.toLowerCase().includes(lower) || f.clerkId.toLowerCase().includes(lower));
+    return friends.filter(
+      (f) =>
+        f.username?.toLowerCase().includes(lower) ||
+        f.clerkId.toLowerCase().includes(lower),
+    );
   }, [friends, friendsQuery]);
 
   const loadRequestCount = useCallback(async () => {
@@ -111,9 +115,14 @@ const ExploreScreen = () => {
     try {
       setSendingTo(target.clerkId);
       await sendFriendRequest(target.clerkId);
-      Alert.alert("Request sent", `Friend request sent to ${target.username ?? target.clerkId}.`);
+      Alert.alert(
+        "Request sent",
+        `Friend request sent to ${target.username ?? target.clerkId}.`,
+      );
       setUsers((prev) =>
-        prev.map((u) => (u.id === target.id ? { ...u, relationshipStatus: "pending" } : u))
+        prev.map((u) =>
+          u.id === target.id ? { ...u, relationshipStatus: "pending" } : u,
+        ),
       );
     } catch {
       Alert.alert("Request failed", "Could not send friend request.");
@@ -127,7 +136,9 @@ const ExploreScreen = () => {
       setCancelingFrom(target.clerkId);
       await cancelFriendRequest(target.clerkId);
       setUsers((prev) =>
-        prev.map((u) => (u.id === target.id ? { ...u, relationshipStatus: "none" } : u))
+        prev.map((u) =>
+          u.id === target.id ? { ...u, relationshipStatus: "none" } : u,
+        ),
       );
     } catch {
       Alert.alert("Error", "Could not cancel request.");
@@ -142,7 +153,9 @@ const ExploreScreen = () => {
       await removeFriend(target.clerkId);
       setFriends((prev) => prev.filter((f) => f.id !== target.id));
       setUsers((prev) =>
-        prev.map((u) => (u.id === target.id ? { ...u, relationshipStatus: "none" } : u))
+        prev.map((u) =>
+          u.id === target.id ? { ...u, relationshipStatus: "none" } : u,
+        ),
       );
     } catch {
       Alert.alert("Error", "Could not remove friend.");
@@ -167,13 +180,18 @@ const ExploreScreen = () => {
     <View className="flex-1 bg-background">
       {/* Background Gradient */}
       <View className="absolute inset-0 z-0">
-        <LinearGradient colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]} style={{ flex: 1 }} />
+        <LinearGradient
+          colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]}
+          style={{ flex: 1 }}
+        />
       </View>
 
       <SafeAreaView className="flex-1 z-10" edges={["top"]}>
         <View className="px-6 pt-2 pb-4 flex-row items-center justify-between z-50">
           <View>
-            <Text className="text-3xl font-black text-foreground tracking-tighter">Explore</Text>
+            <Text className="text-3xl font-black text-foreground tracking-tighter">
+              Explore
+            </Text>
             <Text className="mt-1 text-xs font-bold text-slate-400 uppercase tracking-widest">
               {activeTab === "search" ? "FIND USERS" : "YOUR NETWORK"}
             </Text>
@@ -186,7 +204,9 @@ const ExploreScreen = () => {
             <Ionicons name="notifications" size={18} color={COLORS.primary} />
             {requestCount > 0 && (
               <View className="absolute -top-2 -right-2 bg-red-500 rounded-lg min-w-[20px] h-5 items-center justify-center px-1 shadow-sm border-2 border-white">
-                <Text className="text-white text-[10px] font-black">{requestCount}</Text>
+                <Text className="text-white text-[10px] font-black">
+                  {requestCount}
+                </Text>
               </View>
             )}
           </Pressable>
@@ -196,8 +216,11 @@ const ExploreScreen = () => {
         <View className="px-6 pb-4 pt-2 flex-row gap-3">
           <Pressable
             onPress={() => setActiveTab("search")}
-            className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${activeTab === "search" ? "bg-primary shadow-primary/20" : "bg-white border border-slate-100 shadow-black/5"
-              }`}
+            className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${
+              activeTab === "search"
+                ? "bg-primary shadow-primary/20"
+                : "bg-white border border-slate-100 shadow-black/5"
+            }`}
           >
             <Text
               className={`text-sm font-black tracking-wide ${activeTab === "search" ? "text-white" : "text-slate-500"}`}
@@ -207,8 +230,11 @@ const ExploreScreen = () => {
           </Pressable>
           <Pressable
             onPress={() => setActiveTab("friends")}
-            className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${activeTab === "friends" ? "bg-primary shadow-primary/20" : "bg-white border border-slate-100 shadow-black/5"
-              }`}
+            className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${
+              activeTab === "friends"
+                ? "bg-primary shadow-primary/20"
+                : "bg-white border border-slate-100 shadow-black/5"
+            }`}
           >
             <Text
               className={`text-sm font-black tracking-wide ${activeTab === "friends" ? "text-white" : "text-slate-500"}`}
@@ -251,7 +277,10 @@ const ExploreScreen = () => {
               <FlatList
                 data={users}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 24,
+                  paddingBottom: 20,
+                }}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => {
                   if (item.relationshipStatus === "friends") {
@@ -291,10 +320,16 @@ const ExploreScreen = () => {
                 ListEmptyComponent={
                   <View className="py-16 items-center">
                     <View className="w-16 h-16 rounded-full bg-slate-100 items-center justify-center mb-4">
-                      <Ionicons name="search" size={28} color={COLORS.textMuted} />
+                      <Ionicons
+                        name="search"
+                        size={28}
+                        color={COLORS.textMuted}
+                      />
                     </View>
                     <Text className="text-slate-400 font-bold text-center">
-                      {canSearch ? "No users found" : "Type at least 2 characters to search"}
+                      {canSearch
+                        ? "No users found"
+                        : "Type at least 2 characters to search"}
                     </Text>
                   </View>
                 }
@@ -329,7 +364,10 @@ const ExploreScreen = () => {
               <FlatList
                 data={filteredFriends}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 24,
+                  paddingBottom: 20,
+                }}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
                   <ExploreCard
@@ -346,9 +384,15 @@ const ExploreScreen = () => {
                 ListEmptyComponent={
                   <View className="py-16 items-center">
                     <View className="w-16 h-16 rounded-full bg-slate-100 items-center justify-center mb-4">
-                      <Ionicons name="people" size={28} color={COLORS.textMuted} />
+                      <Ionicons
+                        name="people"
+                        size={28}
+                        color={COLORS.textMuted}
+                      />
                     </View>
-                    <Text className="text-slate-400 font-bold text-center">No friends yet</Text>
+                    <Text className="text-slate-400 font-bold text-center">
+                      No friends yet
+                    </Text>
                     <Text className="text-slate-400 text-xs font-bold mt-1 text-center">
                       Search for users and send friend requests
                     </Text>
@@ -364,3 +408,4 @@ const ExploreScreen = () => {
 };
 
 export default ExploreScreen;
+

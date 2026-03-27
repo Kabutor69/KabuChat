@@ -166,7 +166,7 @@ io.on("connection", (socket) => {
 
 // ----------------- Start Server -----------------
 const PORT = Number(process.env.PORT) || 5000;
-const HOST = "0.0.0.0"; // Listen on all network interfaces
+const HOST = "0.0.0.0"; 
 server.listen(PORT, HOST, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(
