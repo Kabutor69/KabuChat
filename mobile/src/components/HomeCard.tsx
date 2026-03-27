@@ -38,11 +38,11 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     return (
         <Pressable
             onPress={onPress}
-            className="flex-row items-center bg-white p-4 mb-3 rounded-[28px] border border-slate-50 shadow-sm shadow-black/5 active:bg-slate-50"
+            className="flex-row items-center bg-surface-elevated dark:bg-surface-elevated-dark p-4 mb-3 rounded-2xl border border-border dark:border-border-dark shadow-sm shadow-black/5 active:bg-surface dark:active:bg-surface-dark"
         >
             {/* Avatar Section */}
             <View className="relative">
-                <View className="p-1 bg-white rounded-full shadow-sm shadow-primary/10 border border-slate-50">
+                <View className="p-1 bg-surface-elevated dark:bg-surface-elevated-dark rounded-3xl shadow-sm shadow-primary/10 border border-border dark:border-border-dark">
                     {otherUser?.avatar ? (
                         <Image
                             source={otherUser.avatar}
@@ -50,25 +50,23 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                             contentFit="cover"
                         />
                     ) : (
-                        <View className="w-[50px] h-[50px] rounded-full bg-slate-100 items-center justify-center">
+                        <View className="w-[50px] h-[50px] rounded-full bg-surface dark:bg-surface-dark items-center justify-center">
                             <Ionicons name="person" size={24} color={COLORS.textMuted} />
                         </View>
                     )}
                 </View>
-                {/* Optional Online Badge */}
-                {/* <View className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-success border-2 border-white shadow-sm" /> */}
             </View>
 
             {/* Content Section */}
             <View className="flex-1 ml-4 justify-center">
                 <View className="flex-row justify-between items-center mb-1">
-                    <Text className="text-base font-black text-foreground tracking-tight">
+                    <Text className="text-base font-black text-foreground dark:text-foreground-dark tracking-tight">
                         {conversation.isGroup && conversation.name
                             ? conversation.name
                             : otherUser?.name ?? "Unknown user"}
                     </Text>
                     {conversation.lastMessage?.createdAt && (
-                        <Text className={`text-[10px] font-bold ${isUnread ? 'text-primary' : 'text-slate-400'}`}>
+                        <Text className={`text-[10px] font-bold ${isUnread ? 'text-primary' : 'text-foreground-subtle dark:text-foreground-subtle-dark'}`}>
                             {new Date(conversation.lastMessage.createdAt).toLocaleTimeString(
                                 [],
                                 { hour: "2-digit", minute: "2-digit" }
@@ -79,7 +77,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
 
                 <Text
                     numberOfLines={1}
-                    className={`text-sm tracking-tight ${isUnread ? 'font-black text-slate-800' : 'font-bold text-slate-500'}`}
+                    className={`text-sm tracking-tight ${isUnread ? 'font-black text-foreground dark:text-foreground-dark' : 'font-bold text-foreground-muted dark:text-foreground-muted-dark'}`}
                 >
                     {conversation.lastMessage
                         ? `${prefix}${conversation.lastMessage.content}`

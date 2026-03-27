@@ -1,3 +1,4 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import { useProfileUpdate } from "@/hooks/useProfileUpdate";
 import { checkUsernameAvailable } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
@@ -27,6 +28,8 @@ interface EditProfileProps {
 }
 
 const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) => {
+    const { resolvedTheme } = useThemePreference();
+    const isDark = resolvedTheme === "dark";
     const { user } = useUser();
     const [firstName, setFirstName] = useState(user?.firstName || "");
     const [lastName, setLastName] = useState(user?.lastName || "");
@@ -127,12 +130,12 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1 justify-end bg-black/50"
             >
-                <View className="bg-white rounded-t-[40px] p-8 shadow-2xl max-h-[85%]">
-                    <View className="w-12 h-1.5 bg-slate-100 rounded-full self-center mb-6" />
+                <View className="bg-surface-elevated dark:bg-surface-elevated-dark rounded-t-3xl p-8 shadow-2xl max-h-[85%]">
+                    <View className="w-12 h-1.5 bg-surface dark:bg-surface-dark rounded-full self-center mb-6" />
 
                     <View className="flex-row items-center justify-between mb-6">
-                        <Text className="text-2xl font-black text-foreground">Edit Profile</Text>
-                        <Pressable onPress={handleClose} className="h-10 w-10 rounded-full bg-slate-50 items-center justify-center">
+                        <Text className="text-2xl font-black text-foreground dark:text-foreground-dark">Edit Profile</Text>
+                        <Pressable onPress={handleClose} className="h-10 w-10 rounded-full bg-surface dark:bg-surface-dark items-center justify-center">
                             <Ionicons name="close" size={20} color={COLORS.textMuted} />
                         </Pressable>
                     </View>
@@ -145,38 +148,38 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                                     style={{ width: 100, height: 100, borderRadius: 50 }}
                                     contentFit="cover"
                                 />
-                                <View className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full items-center justify-center border-4 border-white shadow-sm">
-                                    <Ionicons name="camera" size={14} color="white" />
+                                <View className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full items-center justify-center border-4 border-surface-elevated dark:border-surface-elevated-dark shadow-sm">
+                                    <Ionicons name="camera" size={14} color="#F8FAFC" />
                                 </View>
                             </Pressable>
                         </View>
 
                         <View className="gap-y-5">
                             <View>
-                                <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">First Name</Text>
+                                <Text className="text-xs font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest mb-2 ml-1">First Name</Text>
                                 <TextInput
                                     value={firstName}
                                     onChangeText={setFirstName}
                                     placeholderTextColor={COLORS.textSubtle}
-                                    className="bg-slate-50 border border-slate-100 rounded-2xl px-5 h-14 font-bold text-slate-700"
+                                    className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl px-5 h-14 font-bold text-foreground dark:text-foreground-dark"
                                 />
                             </View>
 
                             <View>
-                                <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Last Name</Text>
+                                <Text className="text-xs font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest mb-2 ml-1">Last Name</Text>
                                 <TextInput
                                     value={lastName}
                                     onChangeText={setLastName}
                                     placeholderTextColor={COLORS.textSubtle}
-                                    className="bg-slate-50 border border-slate-100 rounded-2xl px-5 h-14 font-bold text-slate-700"
+                                    className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl px-5 h-14 font-bold text-foreground dark:text-foreground-dark"
                                 />
                             </View>
 
                             {/* Username */}
                             <View>
-                                <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Username</Text>
-                                <View className="bg-slate-50 border border-slate-100 rounded-2xl px-5 h-14 flex-row items-center">
-                                    <Text style={{ color: "#94A3B8", fontWeight: "600", fontSize: 15 }}>@</Text>
+                                <Text className="text-xs font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest mb-2 ml-1">Username</Text>
+                                <View className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl px-5 h-14 flex-row items-center">
+                                    <Text style={{ color: isDark ? "#A0A9BD" : "#6B7683", fontWeight: "600", fontSize: 15 }}>@</Text>
                                     <TextInput
                                         value={username}
                                         onChangeText={onUsernameChange}
@@ -184,10 +187,10 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                                         autoCapitalize="none"
                                         autoCorrect={false}
                                         placeholder="your_username"
-                                        style={{ flex: 1, marginLeft: 4, fontWeight: "700", color: "#334155", height: 56 }}
+                                        style={{ flex: 1, marginLeft: 4, fontWeight: "700", color: isDark ? "#E8ECFF" : "#0A0E18", height: 56 }}
                                     />
                                     {usernameStatus === "checking" && (
-                                        <ActivityIndicator size="small" color="#94A3B8" />
+                                        <ActivityIndicator size="small" color={isDark ? "#A0A9BD" : "#6B7683"} />
                                     )}
                                 </View>
                                 {usernameHint ? (
@@ -198,9 +201,9 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                             </View>
 
                             <View>
-                                <Text className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</Text>
-                                <View className="bg-slate-100/50 border border-slate-100 rounded-2xl px-5 h-14 justify-center">
-                                    <Text className="font-bold text-slate-400">{user?.primaryEmailAddress?.emailAddress}</Text>
+                                <Text className="text-xs font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest mb-2 ml-1">Email</Text>
+                                <View className="bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl px-5 h-14 justify-center">
+                                    <Text className="font-bold text-foreground-subtle dark:text-foreground-subtle-dark">{user?.primaryEmailAddress?.emailAddress}</Text>
                                 </View>
                             </View>
                         </View>
@@ -210,9 +213,9 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                         <Pressable
                             onPress={handleClose}
                             disabled={isSaving}
-                            className="flex-1 py-4 rounded-full bg-slate-50 items-center"
+                            className="flex-1 py-4 rounded-full bg-surface dark:bg-surface-dark items-center"
                         >
-                            <Text className="font-bold text-slate-400">Cancel</Text>
+                            <Text className="font-bold text-foreground-subtle dark:text-foreground-subtle-dark">Cancel</Text>
                         </Pressable>
 
                         <Pressable
@@ -221,9 +224,9 @@ const EditProfile = ({ visible, onClose, currentUsername }: EditProfileProps) =>
                             className="flex-1 py-4 rounded-full bg-primary items-center shadow-lg shadow-primary/30"
                         >
                             {isSaving ? (
-                                <ActivityIndicator color="#FFFFFF" />
+                                <ActivityIndicator color="#F8FAFC" />
                             ) : (
-                                <Text className="font-bold text-white">Save Changes</Text>
+                                <Text className="font-bold text-slate-50">Save Changes</Text>
                             )}
                         </Pressable>
                     </View>

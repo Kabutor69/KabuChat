@@ -1,7 +1,7 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import useSocialAuth from "@/hooks/useSocialAuth";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const LoginScreen = () => {
   const router = useRouter();
+  const { resolvedTheme } = useThemePreference();
   const { handleEmailSignIn, handleSocialAuth, loadingStrategy } =
     useSocialAuth();
 
@@ -41,18 +42,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Background Gradient */}
-      <View className="absolute inset-0">
-        <LinearGradient
-          colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]}
-          locations={[0, 0.5, 1]}
-          style={{ width: "100%", height: "100%" }}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
-      </View>
-
+    <View className="flex-1 bg-background dark:bg-background-dark">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
@@ -65,16 +55,20 @@ const LoginScreen = () => {
               onPress={() => router.back()}
               className="absolute left-6 top-4 p-2 z-10"
             >
-              <Ionicons name="chevron-back" size={24} color="#000" />
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+              />
             </Pressable>
 
             <View className="w-16 h-16 rounded-[20px] bg-primary items-center justify-center shadow-lg shadow-primary/30">
-              <Ionicons name="chatbubbles" size={30} color="#FFFFFF" />
+              <Ionicons name="chatbubbles" size={30} color="#F8FAFC" />
             </View>
-            <Text className="text-3xl font-extrabold text-foreground tracking-tight mt-4">
+            <Text className="text-3xl font-extrabold text-foreground dark:text-foreground-dark tracking-tight mt-4">
               Welcome Back
             </Text>
-            <Text className="text-foreground-muted text-[15px] mt-1.5 tracking-wide">
+            <Text className="text-foreground-muted dark:text-foreground-muted-dark text-[15px] mt-1.5 tracking-wide">
               Log in to your KabuChat account
             </Text>
           </View>
@@ -106,11 +100,11 @@ const LoginScreen = () => {
               ) : null}
 
               {/* Email Input */}
-              <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+              <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                 <Ionicons name="mail-outline" size={20} color="#94A3B8" />
                 <TextInput
                   placeholder="Email"
-                  className="flex-1 ml-3 h-full text-foreground"
+                  className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -120,7 +114,7 @@ const LoginScreen = () => {
               </View>
 
               {/* Password Input */}
-              <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+              <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
@@ -129,7 +123,7 @@ const LoginScreen = () => {
                 <TextInput
                   placeholder="Password"
                   secureTextEntry={!showPassword}
-                  className="flex-1 ml-3 h-full text-foreground"
+                  className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark"
                   value={password}
                   onChangeText={setPassword}
                   placeholderTextColor="#94A3B8"
@@ -162,9 +156,9 @@ const LoginScreen = () => {
               className="w-full bg-primary h-14 rounded-full items-center justify-center shadow-lg shadow-primary/30 active:scale-[0.98]"
             >
               {loadingStrategy === "email_signin" ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="#F8FAFC" />
               ) : (
-                <Text className="text-white text-lg font-bold">Login</Text>
+                <Text className="text-slate-50 text-lg font-bold">Login</Text>
               )}
             </Pressable>
 
@@ -173,10 +167,10 @@ const LoginScreen = () => {
               <Pressable
                 onPress={() => handleSocialAuth("oauth_google")}
                 disabled={loadingStrategy === "oauth_google"}
-                className="flex-1 bg-white border border-gray-100 h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm active:bg-slate-50"
+                className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm active:bg-surface"
               >
                 <Ionicons name="logo-google" size={18} color="#DB4437" />
-                <Text className="font-bold text-[13px] text-slate-700">
+                <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
                   Google
                 </Text>
               </Pressable>
@@ -184,17 +178,21 @@ const LoginScreen = () => {
               <Pressable
                 onPress={() => handleSocialAuth("oauth_github")}
                 disabled={loadingStrategy === "oauth_github"}
-                className="flex-1 bg-white border border-gray-100 h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm active:bg-slate-50"
+                className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm active:bg-surface"
               >
-                <Ionicons name="logo-github" size={18} color="#000" />
-                <Text className="font-bold text-[13px] text-slate-700">
+                <Ionicons
+                  name="logo-github"
+                  size={18}
+                  color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+                />
+                <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
                   GitHub
                 </Text>
               </Pressable>
             </View>
 
             <Pressable onPress={() => router.push("./signup")} className="mt-2">
-              <Text className="text-foreground-muted text-center text-sm">
+              <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center text-sm">
                 Do not have an account?{" "}
                 <Text className="text-primary font-bold">Sign Up</Text>
               </Text>
@@ -203,7 +201,7 @@ const LoginScreen = () => {
 
           {/* Footer */}
           <View className="px-10 mt-6">
-            <Text className="text-foreground-subtle text-[11px] text-center leading-4">
+            <Text className="text-foreground-subtle dark:text-foreground-subtle-dark text-[11px] text-center leading-4">
               By continuing, you agree to our{" "}
               <Text className="text-primary font-medium">Terms of Service</Text>{" "}
               and{" "}

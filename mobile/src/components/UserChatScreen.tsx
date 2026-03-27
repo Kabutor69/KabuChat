@@ -1,10 +1,12 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -13,13 +15,12 @@ import {
   Text,
   TextInput,
   View,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  getConversations,
   getMessages,
   markConversationAsRead,
-  getConversations,
   type ChatMessage,
   type Conversation,
 } from "../lib/api";
@@ -27,6 +28,8 @@ import { connectSocket, getSocket } from "../lib/socket";
 
 const UserChatScreen: React.FC = () => {
   const { user } = useUser();
+  const { resolvedTheme } = useThemePreference();
+  const isDark = resolvedTheme === "dark";
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -265,19 +268,19 @@ const UserChatScreen: React.FC = () => {
   const headerAvatar = conversation?.isGroup ? null : peer?.avatar;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
         {/* Header */}
-        <View className="flex-row items-center px-4 py-3 border-b border-slate-200 bg-white shadow-sm z-10 w-full mb-1">
+        <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark shadow-sm z-10 w-full mb-1">
           <Pressable
             onPress={() => router.back()}
             className="h-10 w-10 active:opacity-70 items-center justify-center mr-1"
             hitSlop={10}
           >
-            <Ionicons name="chevron-back" size={26} color="#334155" />
+            <Ionicons name="chevron-back" size={26} color={isDark ? "#E8ECFF" : "#0A0E18"} />
           </Pressable>
           
           <View className="flex-1 flex-row items-center">
@@ -288,13 +291,13 @@ const UserChatScreen: React.FC = () => {
                 contentFit="cover"
               />
             ) : (
-              <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                <Ionicons name="person" size={18} color="#94A3B8" />
+              <View className="w-9 h-9 rounded-full bg-surface dark:bg-surface-dark items-center justify-center border border-border dark:border-border-dark">
+                <Ionicons name="person" size={18} color={isDark ? "#A0A9BD" : "#6B7683"} />
               </View>
             )}
             
             <View className="ml-3 flex-1 flex-col justify-center">
-              <Text className="text-lg font-bold text-slate-800" numberOfLines={1}>{headerName}</Text>
+              <Text className="text-lg font-bold text-foreground dark:text-foreground-dark" numberOfLines={1}>{headerName}</Text>
             </View>
           </View>
         </View>
@@ -318,17 +321,17 @@ const UserChatScreen: React.FC = () => {
             return (
               <View
                 className={`max-w-[75%] mb-2 px-3.5 py-2.5 ${isMe
-                    ? "self-end bg-primary rounded-2xl rounded-tr-sm shadow-sm"
-                    : "self-start bg-white border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm"
+                    ? "self-end bg-primary rounded-xl rounded-tr-none shadow-sm"
+                    : "self-start bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-xl rounded-tl-none shadow-sm"
                   }`}
               >
                 <Text
-                  className={isMe ? "text-white text-[15px] leading-5" : "text-slate-800 text-[15px] leading-5"}
+                  className={isMe ? "text-slate-50 text-[15px] leading-5" : "text-foreground dark:text-foreground-dark text-[15px] leading-5"}
                 >
                   {item.content}
                 </Text>
                 {isLastRead ? (
-                  <Text className="text-white/70 mt-1 text-[10px] text-right font-medium tracking-wide">
+                  <Text className="text-slate-100/80 mt-1 text-[10px] text-right font-medium tracking-wide">
                     Seen
                   </Text>
                 ) : null}
@@ -340,39 +343,39 @@ const UserChatScreen: React.FC = () => {
 
         {isPeerTyping ? (
           <View className="px-5 mb-2">
-            <Text className="text-xs font-semibold text-slate-400 italic">Typing...</Text>
+            <Text className="text-xs font-semibold text-foreground-subtle dark:text-foreground-subtle-dark italic">Typing...</Text>
           </View>
         ) : null}
 
         {conversation && !conversation.isGroup && conversation.isFriend === false ? (
-          <View className="px-5 py-4 bg-slate-50 border-t border-slate-200 items-center justify-center">
-            <Text className="text-slate-500 font-medium text-center leading-5 px-4 mb-2">
+          <View className="px-5 py-4 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark items-center justify-center">
+            <Text className="text-foreground-muted dark:text-foreground-muted-dark font-medium text-center leading-5 px-4 mb-2">
               You are no longer friends and cannot reply to this conversation.
             </Text>
           </View>
         ) : (
-          <View className="flex-row items-end px-3 py-2.5 bg-white border-t border-slate-200">
-            <View className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl flex-row items-center px-4 min-h-[44px] max-h-32 mb-1">
+          <View className="flex-row items-end px-3 py-2.5 bg-surface-elevated dark:bg-surface-elevated-dark border-t border-border dark:border-border-dark">
+            <View className="flex-1 bg-surface dark:bg-surface-dark border border-border dark:border-border-dark rounded-2xl flex-row items-center px-4 min-h-[44px] max-h-32 mb-1">
               <TextInput
                 value={input}
                 onChangeText={handleInputChange}
                 placeholder="Message..."
                 placeholderTextColor="#94A3B8"
                 multiline={true}
-                className="flex-1 font-medium text-slate-800 text-[15px] py-2.5"
+                className="flex-1 font-medium text-foreground dark:text-foreground-dark text-[15px] py-2.5"
                 style={{ textAlignVertical: "center" }}
               />
             </View>
             <Pressable
               onPress={handleSend}
               disabled={sending || !input.trim()}
-              className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-slate-100" : "bg-primary active:opacity-80"
+              className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-surface dark:bg-surface-dark" : "bg-primary active:opacity-80"
                 }`}
             >
               {sending ? (
-                <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} size="small" />
+                <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#F8FAFC"} size="small" />
               ) : (
-                <Ionicons name="paper-plane" size={20} color={sending || !input.trim() ? "#A1A1AA" : "#FFFFFF"} style={{ marginLeft: 2, marginTop: 1 }} />
+                <Ionicons name="paper-plane" size={20} color={sending || !input.trim() ? "#A1A1AA" : "#F8FAFC"} style={{ marginLeft: 2, marginTop: 1 }} />
               )}
             </Pressable>
           </View>

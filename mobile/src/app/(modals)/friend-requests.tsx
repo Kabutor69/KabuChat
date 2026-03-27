@@ -65,19 +65,19 @@ const FriendRequestsScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top"]}>
       <View className="px-4 pt-3 pb-4 flex-row items-center justify-between">
         <View className="flex-1">
-          <Text className="text-3xl font-extrabold text-foreground">Friend Requests</Text>
-          <Text className="mt-1 text-sm text-foreground-muted">
+            <Text className="text-3xl font-extrabold text-foreground dark:text-foreground-dark">Friend Requests</Text>
+          <Text className="mt-1 text-sm text-foreground-muted dark:text-foreground-muted-dark">
             {requests.length} pending {requests.length === 1 ? "request" : "requests"}
           </Text>
         </View>
         <Pressable
           onPress={() => router.back()}
-          className="h-10 w-10 rounded-full bg-gray-200 items-center justify-center"
+          className="h-10 w-10 rounded-full bg-surface dark:bg-surface-dark items-center justify-center"
         >
-          <Text className="text-lg">✕</Text>
+          <Text className="text-lg text-foreground dark:text-foreground-dark">✕</Text>
         </Pressable>
       </View>
 
@@ -93,18 +93,18 @@ const FriendRequestsScreen = () => {
           renderItem={({ item }) => {
             const isProcessing = processingId === item.id;
             return (
-              <View className="rounded-2xl border border-border bg-white p-4">
+              <View className="rounded-2xl border border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark p-4">
                 <View className="flex-row items-center mb-3">
                   <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mr-3">
-                    <Text className="text-white text-xl font-bold">
+                    <Text className="text-slate-50 text-xl font-bold">
                       {(item.sender.username ?? "U")[0].toUpperCase()}
                     </Text>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-base font-bold text-foreground">
+                    <Text className="text-base font-bold text-foreground dark:text-foreground-dark">
                       {item.sender.username ?? "Unknown user"}
                     </Text>
-                    <Text className="text-xs text-foreground-subtle mt-0.5">
+                    <Text className="text-xs text-foreground-subtle dark:text-foreground-subtle-dark mt-0.5">
                       {new Date(item.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
@@ -116,20 +116,20 @@ const FriendRequestsScreen = () => {
                     className="flex-1 h-11 rounded-xl bg-primary items-center justify-center"
                   >
                     {isProcessing ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color="#F8FAFC" />
                     ) : (
-                      <Text className="font-bold text-white">Accept</Text>
+                      <Text className="font-bold text-slate-50">Accept</Text>
                     )}
                   </Pressable>
                   <Pressable
                     onPress={() => onReject(item)}
                     disabled={isProcessing}
-                    className="flex-1 h-11 rounded-xl bg-gray-200 items-center justify-center"
+                    className="flex-1 h-11 rounded-xl bg-surface dark:bg-surface-dark items-center justify-center"
                   >
                     {isProcessing ? (
                       <ActivityIndicator color="#666" />
                     ) : (
-                      <Text className="font-bold text-gray-700">Reject</Text>
+                      <Text className="font-bold text-foreground-muted dark:text-foreground-muted-dark">Reject</Text>
                     )}
                   </Pressable>
                 </View>
@@ -138,7 +138,7 @@ const FriendRequestsScreen = () => {
           }}
           ListEmptyComponent={
             <View className="py-20 items-center">
-              <Text className="text-foreground-muted text-center">
+              <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center">
                 No pending friend requests
               </Text>
             </View>

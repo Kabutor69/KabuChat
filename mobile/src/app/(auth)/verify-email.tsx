@@ -1,7 +1,7 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import useSocialAuth from "@/hooks/useSocialAuth";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const VerifyEmailScreen = () => {
   const router = useRouter();
+  const { resolvedTheme } = useThemePreference();
   const params = useLocalSearchParams();
   const email = (params.email as string) || "your email";
   const { handleVerifyEmail, handleResendVerificationEmail, loadingStrategy } =
@@ -77,16 +78,9 @@ const VerifyEmailScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background dark:bg-background-dark">
       {/* Background Gradient */}
       <View className="absolute inset-0">
-        <LinearGradient
-          colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]}
-          locations={[0, 0.5, 1]}
-          style={{ width: "100%", height: "100%" }}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
       </View>
 
       <KeyboardAvoidingView
@@ -100,16 +94,20 @@ const VerifyEmailScreen = () => {
               onPress={() => router.back()}
               className="absolute left-6 top-4 p-2 z-10"
             >
-              <Ionicons name="chevron-back" size={24} color="#000" />
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+              />
             </Pressable>
 
             <View className="w-16 h-16 rounded-[20px] bg-primary items-center justify-center shadow-lg shadow-primary/30">
-              <Ionicons name="mail-open" size={30} color="#FFFFFF" />
+              <Ionicons name="mail-open" size={30} color="#F8FAFC" />
             </View>
-            <Text className="text-3xl font-extrabold text-foreground tracking-tight mt-4">
+            <Text className="text-3xl font-extrabold text-foreground dark:text-foreground-dark tracking-tight mt-4">
               Verify Email
             </Text>
-            <Text className="text-foreground-muted text-[15px] mt-1.5 tracking-wide text-center px-10">
+            <Text className="text-foreground-muted dark:text-foreground-muted-dark text-[15px] mt-1.5 tracking-wide text-center px-10">
               Enter the code sent to {"\n"}
               <Text className="font-bold text-primary">{email}</Text>
             </Text>
@@ -152,18 +150,18 @@ const VerifyEmailScreen = () => {
               {/* Code Input Container */}
               <View className="gap-y-3">
                 <View className="flex-row justify-between items-center px-1">
-                  <Text className="text-foreground font-bold">
+                  <Text className="text-foreground dark:text-foreground-dark font-bold">
                     Verification Code
                   </Text>
                   <Text
-                    className={`text-[11px] font-bold ${timeLeft <= 60 ? "text-red-500" : "text-slate-400"}`}
+                    className={`text-[11px] font-bold ${timeLeft <= 60 ? "text-red-500" : "text-foreground-subtle dark:text-foreground-subtle-dark"}`}
                   >
                     Expires: {formatTime(timeLeft)}
                   </Text>
                 </View>
 
                 <TextInput
-                  className="bg-white border border-primary/20 rounded-3xl h-16 text-center text-3xl font-black text-primary shadow-sm shadow-black/5 tracking-[15px]"
+                  className="bg-surface-elevated dark:bg-surface-elevated-dark border border-primary/30 rounded-3xl h-16 text-center text-3xl font-black text-primary shadow-sm shadow-black/5 tracking-[15px]"
                   placeholder="000000"
                   placeholderTextColor="#E2E8F0"
                   value={code}
@@ -178,7 +176,7 @@ const VerifyEmailScreen = () => {
 
               {/* Resend Logic */}
               <View className="items-center">
-                <Text className="text-slate-500 text-xs">
+                <Text className="text-foreground-muted dark:text-foreground-muted-dark text-xs">
                   Did not receive the code?
                 </Text>
                 <Pressable
@@ -187,7 +185,7 @@ const VerifyEmailScreen = () => {
                   className="mt-1"
                 >
                   <Text
-                    className={`font-bold ${canResend ? "text-primary" : "text-slate-300"}`}
+                    className={`font-bold ${canResend ? "text-primary" : "text-foreground-subtle dark:text-foreground-subtle-dark"}`}
                   >
                     {loadingStrategy === "email_resend"
                       ? "Sending..."
@@ -210,16 +208,16 @@ const VerifyEmailScreen = () => {
               className="w-full bg-primary h-14 rounded-full items-center justify-center shadow-lg shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
             >
               {loadingStrategy === "email_verify" ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="#F8FAFC" />
               ) : (
-                <Text className="text-white text-lg font-bold">
+                <Text className="text-slate-50 text-lg font-bold">
                   Verify & Continue
                 </Text>
               )}
             </Pressable>
 
             <Pressable onPress={() => router.back()}>
-              <Text className="text-slate-500 text-center text-sm">
+              <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center text-sm">
                 Use a different email?{" "}
                 <Text className="text-primary font-bold">Change Email</Text>
               </Text>
@@ -228,7 +226,7 @@ const VerifyEmailScreen = () => {
 
           {/* Footer */}
           <View className="px-10 mt-6">
-            <Text className="text-slate-400 text-[11px] text-center leading-4">
+            <Text className="text-foreground-subtle dark:text-foreground-subtle-dark text-[11px] text-center leading-4">
               By continuing, you agree to our{" "}
               <Text className="text-primary font-medium">Terms of Service</Text>{" "}
               and{" "}

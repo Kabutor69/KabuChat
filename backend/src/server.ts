@@ -11,7 +11,7 @@ import messageRoutes from "./routes/message.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
-import { authMiddlewareSocket } from "./middleware/auth.middleware.js"; // we’ll create this
+import { authMiddlewareSocket } from "./middleware/auth.middleware.js"; 
 
 import { prisma } from "./lib/prisma.js";
 
@@ -28,9 +28,19 @@ if (!process.env.CLERK_JWT_KEY) {
   );
 }
 
+const socketCorsOrigins = (process.env.SOCKET_CORS_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const resolvedSocketOrigins =
+  socketCorsOrigins.length > 0
+    ? socketCorsOrigins
+    : true;
+
 const io = new Server(server, {
   cors: {
-    origin: ["exp://192.168.1.65:8081", "http://192.168.1.65:8081"],
+    origin: resolvedSocketOrigins,
     credentials: true,
   },
 });

@@ -30,10 +30,10 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
     secondaryActionVariant = "secondary",
 }) => {
     const getVariantStyles = (variant: string, loading: boolean) => {
-        if (loading) return "bg-slate-200";
+        if (loading) return "bg-surface dark:bg-surface-dark";
         switch (variant) {
             case "danger": return "bg-red-500";
-            case "secondary": return "bg-slate-200";
+            case "secondary": return "bg-surface dark:bg-surface-dark";
             case "primary":
             default: return "bg-primary";
         }
@@ -41,17 +41,17 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
 
     const getTextStyles = (variant: string) => {
         switch (variant) {
-            case "danger": return "text-white";
-            case "secondary": return "text-slate-700";
+            case "danger": return "text-slate-50";
+            case "secondary": return "text-foreground-muted dark:text-foreground-muted-dark";
             case "primary":
-            default: return "text-white";
+            default: return "text-slate-50";
         }
     };
 
     return (
-        <View className="flex-row items-center bg-white p-4 mb-3 rounded-[28px] border border-slate-50 shadow-sm shadow-black/5">
+        <View className="flex-row items-center bg-surface-elevated dark:bg-surface-elevated-dark p-4 mb-3 rounded-2xl border border-border dark:border-border-dark shadow-sm shadow-black/5">
             {/* Avatar Section */}
-            <View className="p-1 bg-white rounded-full shadow-sm shadow-primary/10 border border-slate-50">
+            <View className="p-1 bg-surface-elevated dark:bg-surface-elevated-dark rounded-3xl shadow-sm shadow-primary/10 border border-border dark:border-border-dark">
                 {user.avatar ? (
                     <Image
                         source={user.avatar}
@@ -59,7 +59,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
                         contentFit="cover"
                     />
                 ) : (
-                    <View className="w-[50px] h-[50px] rounded-full bg-slate-100 items-center justify-center">
+                    <View className="w-[50px] h-[50px] rounded-full bg-surface dark:bg-surface-dark items-center justify-center">
                         <Ionicons name="person" size={24} color={COLORS.textMuted} />
                     </View>
                 )}
@@ -67,7 +67,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
 
             {/* Content Section */}
             <View className="flex-1 ml-4 justify-center">
-                <Text className="text-base font-black text-foreground tracking-tight">
+                <Text className="text-base font-black text-foreground dark:text-foreground-dark tracking-tight">
                     {user.username ?? "User"}
                 </Text>
             </View>
@@ -81,7 +81,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
                         className={`h-10 rounded-[14px] px-3 items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(secondaryActionVariant, isSecondaryLoading)}`}
                     >
                         {isSecondaryLoading ? (
-                            <ActivityIndicator color={secondaryActionVariant === "secondary" ? "#64748B" : "#fff"} size="small" />
+                            <ActivityIndicator color={secondaryActionVariant === "secondary" ? "#64748B" : "#F8FAFC"} size="small" />
                         ) : (
                             <Text className={`text-sm font-bold ${getTextStyles(secondaryActionVariant)}`}>{secondaryActionLabel}</Text>
                         )}
@@ -94,7 +94,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
                     className={`h-10 rounded-[14px] px-3 items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(actionVariant, isLoading)}`}
                 >
                     {isLoading ? (
-                        <ActivityIndicator color={actionVariant === "secondary" ? "#64748B" : "#fff"} size="small" />
+                        <ActivityIndicator color={actionVariant === "secondary" ? "#64748B" : "#F8FAFC"} size="small" />
                     ) : (
                         <Text className={`text-sm font-bold ${getTextStyles(actionVariant)}`}>{actionLabel}</Text>
                     )}

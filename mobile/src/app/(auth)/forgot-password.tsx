@@ -1,8 +1,8 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import useSocialAuth from "@/hooks/useSocialAuth";
 import { useSignIn } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -21,6 +21,7 @@ type ResetStep = "email" | "code" | "password";
 
 const ForgotPasswordScreen = () => {
   const router = useRouter();
+  const { resolvedTheme } = useThemePreference();
   const { isLoaded, signIn } = useSignIn();
   const { handlePasswordReset } = useSocialAuth();
 
@@ -125,15 +126,8 @@ const ForgotPasswordScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background dark:bg-background-dark">
       <View className="absolute inset-0">
-        <LinearGradient
-          colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]}
-          locations={[0, 0.5, 1]}
-          style={{ width: "100%", height: "100%" }}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
       </View>
 
       <KeyboardAvoidingView
@@ -148,16 +142,20 @@ const ForgotPasswordScreen = () => {
               onPress={() => router.back()}
               className="absolute left-6 top-4 p-2 z-10"
             >
-              <Ionicons name="chevron-back" size={24} color="#000" />
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+              />
             </Pressable>
 
             <View className="w-16 h-16 rounded-[20px] bg-primary items-center justify-center shadow-lg shadow-primary/30">
-              <Ionicons name="lock-open" size={30} color="#FFFFFF" />
+              <Ionicons name="lock-open" size={30} color="#F8FAFC" />
             </View>
-            <Text className="text-3xl font-extrabold text-foreground tracking-tight mt-4">
+            <Text className="text-3xl font-extrabold text-foreground dark:text-foreground-dark tracking-tight mt-4">
               Reset Password
             </Text>
-            <Text className="text-foreground-muted text-[15px] mt-1.5 tracking-wide text-center px-10">
+            <Text className="text-foreground-muted dark:text-foreground-muted-dark text-[15px] mt-1.5 tracking-wide text-center px-10">
               {step === "email" && "Recover your account access"}
               {step === "code" && "Verify the 6-digit code"}
               {step === "password" && "Secure your new credentials"}
@@ -201,11 +199,11 @@ const ForgotPasswordScreen = () => {
 
               {/* Email Step */}
               {step === "email" && (
-                <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+                <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                   <Ionicons name="mail-outline" size={20} color="#94A3B8" />
                   <TextInput
                     placeholder="Your Email"
-                    className="flex-1 ml-3 h-full text-foreground"
+                    className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -217,11 +215,11 @@ const ForgotPasswordScreen = () => {
 
               {/* Code Step */}
               {step === "code" && (
-                <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+                <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                   <Ionicons name="keypad-outline" size={20} color="#94A3B8" />
                   <TextInput
                     placeholder="Enter 6-digit code"
-                    className="flex-1 ml-3 h-full text-foreground font-bold tracking-[5px]"
+                    className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark font-bold tracking-[5px]"
                     value={code}
                     onChangeText={setCode}
                     keyboardType="number-pad"
@@ -234,7 +232,7 @@ const ForgotPasswordScreen = () => {
               {/* Password Step */}
               {step === "password" && (
                 <View className="gap-y-4">
-                  <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+                  <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                     <Ionicons
                       name="lock-closed-outline"
                       size={20}
@@ -243,7 +241,7 @@ const ForgotPasswordScreen = () => {
                     <TextInput
                       placeholder="New Password"
                       secureTextEntry={!showPass}
-                      className="flex-1 ml-3 h-full text-foreground"
+                      className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark"
                       value={newPassword}
                       onChangeText={setNewPassword}
                       placeholderTextColor="#94A3B8"
@@ -257,7 +255,7 @@ const ForgotPasswordScreen = () => {
                     </Pressable>
                   </View>
 
-                  <View className="w-full bg-white border border-primary/10 rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
+                  <View className="w-full bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl px-4 flex-row items-center h-14 shadow-sm shadow-black/5">
                     <Ionicons
                       name="shield-checkmark-outline"
                       size={20}
@@ -266,7 +264,7 @@ const ForgotPasswordScreen = () => {
                     <TextInput
                       placeholder="Confirm New Password"
                       secureTextEntry={!showConfirm}
-                      className="flex-1 ml-3 h-full text-foreground"
+                      className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       placeholderTextColor="#94A3B8"
@@ -292,9 +290,9 @@ const ForgotPasswordScreen = () => {
               className="w-full bg-primary h-14 rounded-full items-center justify-center shadow-lg shadow-primary/30 active:scale-[0.98]"
             >
               {loading ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="#F8FAFC" />
               ) : (
-                <Text className="text-white text-lg font-bold">
+                <Text className="text-slate-50 text-lg font-bold">
                   {step === "email"
                     ? "Send Code"
                     : step === "code"
@@ -305,7 +303,7 @@ const ForgotPasswordScreen = () => {
             </Pressable>
 
             <Pressable onPress={() => router.replace("./login")}>
-              <Text className="text-foreground-muted text-center text-sm">
+              <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center text-sm">
                 Remembered it?{" "}
                 <Text className="text-primary font-bold">Sign In</Text>
               </Text>
@@ -314,7 +312,7 @@ const ForgotPasswordScreen = () => {
 
           {/* Footer */}
           <View className="px-10 mt-6">
-            <Text className="text-foreground-subtle text-[11px] text-center leading-4">
+            <Text className="text-foreground-subtle dark:text-foreground-subtle-dark text-[11px] text-center leading-4">
               By continuing, you agree to our{" "}
               <Text className="text-primary font-medium">Terms of Service</Text>{" "}
               and{" "}

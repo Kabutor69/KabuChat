@@ -1,14 +1,15 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HomeCard } from "../../components/HomeCard";
-import { getConversations, type Conversation, type ChatMessage } from "../../lib/api";
+import { getConversations, type ChatMessage, type Conversation } from "../../lib/api";
 import { connectSocket } from "../../lib/socket";
 
 const ChatScreen: React.FC = () => {
+  const { resolvedTheme } = useThemePreference();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -125,16 +126,11 @@ const ChatScreen: React.FC = () => {
   );
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Background Gradient */}
-      <View className="absolute inset-0 z-0">
-        <LinearGradient colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]} style={{ flex: 1 }} />
-      </View>
-
-      <SafeAreaView className="flex-1 z-10" edges={['top']}>
+    <View className="flex-1 bg-background dark:bg-background-dark">
+      <SafeAreaView className="flex-1" edges={["top"]}>
         {/* Header */}
         <View className="px-6 pt-2 pb-4 z-50">
-          <Text className="text-3xl font-black text-foreground tracking-tighter">Chats</Text>
+          <Text className="text-3xl font-black text-foreground dark:text-foreground-dark tracking-tighter">Chats</Text>
         </View>
 
         {loading && conversations.length === 0 ? (
@@ -152,7 +148,7 @@ const ChatScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View className="py-16 items-center">
-              <Text className="text-slate-400 font-bold">No chats yet</Text>
+              <Text className="text-foreground-subtle dark:text-foreground-subtle-dark font-bold">No chats yet</Text>
             </View>
           }
         />

@@ -6,36 +6,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Background colors
-        background: "#FFFFFF",
-        surface: "#F8F9FA",
+        // Background colors - softer, more refined
+        background: "#FAFBFC",
+        "background-dark": "#0F1419",
+        surface: "#F0F3F8",
+        "surface-dark": "#1A1F2E",
         "surface-elevated": "#FFFFFF",
+        "surface-elevated-dark": "#252D3D",
 
-        // Primary brand color
+        // Primary brand color - more vibrant
         primary: {
-          DEFAULT: "#6366F1",
-          light: "#818CF8",
-          dark: "#4F46E5",
+          DEFAULT: "#5B4AFF",
+          light: "#7B6AFF",
+          dark: "#4A39FF",
         },
 
-        // Accent colors
+        // Accent colors - richer
         accent: {
-          DEFAULT: "#8B5CF6",
-          light: "#A78BFA",
-          secondary: "#06B6D4",
+          DEFAULT: "#9B5AFF",
+          light: "#BB7AFF",
+          secondary: "#00D9FF",
         },
 
-        // Text colors
+        // Text colors - better contrast
         foreground: {
-          DEFAULT: "#111827",
-          muted: "#6B7280",
-          subtle: "#9CA3AF",
+          DEFAULT: "#0A0E18",
+          dark: "#E8ECFF",
+          muted: "#6B7683",
+          "muted-dark": "#A0A9BD",
+          subtle: "#8A949F",
+          "subtle-dark": "#7A8495",
         },
 
-        // Border colors
+        // Border colors - more defined
         border: {
-          DEFAULT: "#E5E7EB",
-          light: "#F3F4F6",
+          DEFAULT: "#E0E5EE",
+          dark: "#1F2636",
+          light: "#EBF0F7",
         },
 
         // Status colors

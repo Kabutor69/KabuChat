@@ -1,27 +1,27 @@
+import { useThemePreference } from "@/contexts/theme.context";
 import {
-  cancelFriendRequest,
-  createDmConversation,
-  getFriends,
-  getPendingFriendRequests,
-  removeFriend,
-  searchUsers,
-  sendFriendRequest,
-  type UserSearchItem,
+    cancelFriendRequest,
+    createDmConversation,
+    getFriends,
+    getPendingFriendRequests,
+    removeFriend,
+    searchUsers,
+    sendFriendRequest,
+    type UserSearchItem,
 } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ExploreCard } from "../../components/ExploreCard";
@@ -29,6 +29,7 @@ import { ExploreCard } from "../../components/ExploreCard";
 type TabType = "search" | "friends";
 
 const ExploreScreen = () => {
+  const { resolvedTheme } = useThemePreference();
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("search");
@@ -177,34 +178,26 @@ const ExploreScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Background Gradient */}
-      <View className="absolute inset-0 z-0">
-        <LinearGradient
-          colors={["#FFFFFF", "#F8F9FA", "#F1F3F5"]}
-          style={{ flex: 1 }}
-        />
-      </View>
-
-      <SafeAreaView className="flex-1 z-10" edges={["top"]}>
+    <View className="flex-1 bg-background dark:bg-background-dark">
+      <SafeAreaView className="flex-1" edges={["top"]}>
         <View className="px-6 pt-2 pb-4 flex-row items-center justify-between z-50">
           <View>
-            <Text className="text-3xl font-black text-foreground tracking-tighter">
+            <Text className="text-3xl font-black text-foreground dark:text-foreground-dark tracking-tighter">
               Explore
             </Text>
-            <Text className="mt-1 text-xs font-bold text-slate-400 uppercase tracking-widest">
+            <Text className="mt-1 text-xs font-bold text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest">
               {activeTab === "search" ? "FIND USERS" : "YOUR NETWORK"}
             </Text>
           </View>
           <Pressable
             onPress={() => router.push("/(modals)/friend-requests")}
             hitSlop={10}
-            className="h-12 px-5 rounded-2xl bg-white items-center justify-center flex-row gap-2 shadow-sm border border-slate-100 active:scale-95"
+            className="h-12 px-5 rounded-2xl bg-surface-elevated dark:bg-surface-elevated-dark items-center justify-center flex-row gap-2 shadow-sm border border-border dark:border-border-dark active:scale-95"
           >
             <Ionicons name="notifications" size={18} color={COLORS.primary} />
             {requestCount > 0 && (
-              <View className="absolute -top-2 -right-2 bg-red-500 rounded-lg min-w-[20px] h-5 items-center justify-center px-1 shadow-sm border-2 border-white">
-                <Text className="text-white text-[10px] font-black">
+              <View className="absolute -top-2 -right-2 bg-red-500 rounded-lg min-w-[20px] h-5 items-center justify-center px-1 shadow-sm border-2 border-surface-elevated dark:border-surface-elevated-dark">
+                <Text className="text-slate-50 text-[10px] font-black">
                   {requestCount}
                 </Text>
               </View>
@@ -219,11 +212,11 @@ const ExploreScreen = () => {
             className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${
               activeTab === "search"
                 ? "bg-primary shadow-primary/20"
-                : "bg-white border border-slate-100 shadow-black/5"
+                : "bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark shadow-black/5"
             }`}
           >
             <Text
-              className={`text-sm font-black tracking-wide ${activeTab === "search" ? "text-white" : "text-slate-500"}`}
+              className={`text-sm font-black tracking-wide ${activeTab === "search" ? "text-slate-50" : "text-foreground-muted dark:text-foreground-muted-dark"}`}
             >
               Search
             </Text>
@@ -233,11 +226,11 @@ const ExploreScreen = () => {
             className={`flex-1 h-12 rounded-[20px] items-center justify-center shadow-sm ${
               activeTab === "friends"
                 ? "bg-primary shadow-primary/20"
-                : "bg-white border border-slate-100 shadow-black/5"
+                : "bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark shadow-black/5"
             }`}
           >
             <Text
-              className={`text-sm font-black tracking-wide ${activeTab === "friends" ? "text-white" : "text-slate-500"}`}
+              className={`text-sm font-black tracking-wide ${activeTab === "friends" ? "text-slate-50" : "text-foreground-muted dark:text-foreground-muted-dark"}`}
             >
               Friends
             </Text>
@@ -248,14 +241,14 @@ const ExploreScreen = () => {
         {activeTab === "search" && (
           <>
             <View className="px-6 pb-4 flex-row gap-3">
-              <View className="flex-1 h-14 rounded-[20px] bg-white border border-slate-100 shadow-sm shadow-black/5 flex-row items-center px-4">
+              <View className="flex-1 h-14 rounded-[20px] bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark shadow-sm shadow-black/5 flex-row items-center px-4">
                 <Ionicons name="search" size={20} color={COLORS.textMuted} />
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
                   placeholder="Search usernames..."
                   placeholderTextColor="#94A3B8"
-                  className="flex-1 ml-3 h-full text-foreground font-bold"
+                  className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark font-bold"
                   autoCapitalize="none"
                   onSubmitEditing={onSearch}
                   returnKeyType="search"
@@ -265,7 +258,7 @@ const ExploreScreen = () => {
                 onPress={onSearch}
                 className="h-14 w-14 rounded-[20px] bg-primary items-center justify-center shadow-sm shadow-primary/20 active:scale-95"
               >
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                <Ionicons name="arrow-forward" size={20} color="#F8FAFC" />
               </Pressable>
             </View>
 
@@ -319,14 +312,14 @@ const ExploreScreen = () => {
                 }}
                 ListEmptyComponent={
                   <View className="py-16 items-center">
-                    <View className="w-16 h-16 rounded-full bg-slate-100 items-center justify-center mb-4">
+                    <View className="w-16 h-16 rounded-full bg-surface dark:bg-surface-dark items-center justify-center mb-4">
                       <Ionicons
                         name="search"
                         size={28}
                         color={COLORS.textMuted}
                       />
                     </View>
-                    <Text className="text-slate-400 font-bold text-center">
+                    <Text className="text-foreground-subtle dark:text-foreground-subtle-dark font-bold text-center">
                       {canSearch
                         ? "No users found"
                         : "Type at least 2 characters to search"}
@@ -342,14 +335,14 @@ const ExploreScreen = () => {
         {activeTab === "friends" && (
           <>
             <View className="px-6 pb-4 flex-row gap-3">
-              <View className="flex-1 h-14 rounded-[20px] bg-white border border-slate-100 shadow-sm shadow-black/5 flex-row items-center px-4">
+              <View className="flex-1 h-14 rounded-[20px] bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark shadow-sm shadow-black/5 flex-row items-center px-4">
                 <Ionicons name="search" size={20} color={COLORS.textMuted} />
                 <TextInput
                   value={friendsQuery}
                   onChangeText={setFriendsQuery}
                   placeholder="Search friends..."
                   placeholderTextColor="#94A3B8"
-                  className="flex-1 ml-3 h-full text-foreground font-bold"
+                  className="flex-1 ml-3 h-full text-foreground dark:text-foreground-dark font-bold"
                   autoCapitalize="none"
                   returnKeyType="search"
                 />
@@ -383,17 +376,17 @@ const ExploreScreen = () => {
                 )}
                 ListEmptyComponent={
                   <View className="py-16 items-center">
-                    <View className="w-16 h-16 rounded-full bg-slate-100 items-center justify-center mb-4">
+                    <View className="w-16 h-16 rounded-full bg-surface dark:bg-surface-dark items-center justify-center mb-4">
                       <Ionicons
                         name="people"
                         size={28}
                         color={COLORS.textMuted}
                       />
                     </View>
-                    <Text className="text-slate-400 font-bold text-center">
+                    <Text className="text-foreground-subtle dark:text-foreground-subtle-dark font-bold text-center">
                       No friends yet
                     </Text>
-                    <Text className="text-slate-400 text-xs font-bold mt-1 text-center">
+                    <Text className="text-foreground-subtle dark:text-foreground-subtle-dark text-xs font-bold mt-1 text-center">
                       Search for users and send friend requests
                     </Text>
                   </View>
