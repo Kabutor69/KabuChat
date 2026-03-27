@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -140,11 +141,16 @@ const UserChatScreen: React.FC = () => {
           setSocketConnected(false);
         };
 
+        const handleError = (payload: { message: string }) => {
+          Alert.alert("Error", payload.message || "Something went wrong.");
+        };
+
         socket.on("newMessage", handleNewMessage);
         socket.on("typing", handleTyping);
         socket.on("messagesRead", handleMessagesRead);
         socket.on("connect", handleConnect);
         socket.on("disconnect", handleDisconnect);
+        socket.on("error", handleError);
         
         // Save handlers to ref so we can specifically clear them later
         socketHandlersRef.current = {
@@ -153,6 +159,7 @@ const UserChatScreen: React.FC = () => {
             messagesRead: handleMessagesRead,
             connect: handleConnect,
             disconnect: handleDisconnect,
+            error: handleError,
         };
       } catch (error) {
         console.error("Socket setup failed:", error);
@@ -170,6 +177,7 @@ const UserChatScreen: React.FC = () => {
         if (handlers.messagesRead) socket.off("messagesRead", handlers.messagesRead);
         if (handlers.connect) socket.off("connect", handlers.connect);
         if (handlers.disconnect) socket.off("disconnect", handlers.disconnect);
+        if (handlers.error) socket.off("error", handlers.error);
       }
     };
   }, [conversationId, loadMessages, markRead, user?.id]);
@@ -336,31 +344,39 @@ const UserChatScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View className="flex-row items-end px-3 py-2.5 bg-white border-t border-slate-200">
-          <View className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl flex-row items-center px-4 min-h-[44px] max-h-32 mb-1">
-            <TextInput
-              value={input}
-              onChangeText={handleInputChange}
-              placeholder="Message..."
-              placeholderTextColor="#94A3B8"
-              multiline={true}
-              className="flex-1 font-medium text-slate-800 text-[15px] py-2.5"
-              style={{ textAlignVertical: "center" }}
-            />
+        {conversation && !conversation.isGroup && conversation.isFriend === false ? (
+          <View className="px-5 py-4 bg-slate-50 border-t border-slate-200 items-center justify-center">
+            <Text className="text-slate-500 font-medium text-center leading-5 px-4 mb-2">
+              You are no longer friends and cannot reply to this conversation.
+            </Text>
           </View>
-          <Pressable
-            onPress={handleSend}
-            disabled={sending || !input.trim()}
-            className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-slate-100" : "bg-primary active:opacity-80"
-              }`}
-          >
-            {sending ? (
-              <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} size="small" />
-            ) : (
-              <Ionicons name="paper-plane" size={20} color={sending || !input.trim() ? "#A1A1AA" : "#FFFFFF"} style={{ marginLeft: 2, marginTop: 1 }} />
-            )}
-          </Pressable>
-        </View>
+        ) : (
+          <View className="flex-row items-end px-3 py-2.5 bg-white border-t border-slate-200">
+            <View className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl flex-row items-center px-4 min-h-[44px] max-h-32 mb-1">
+              <TextInput
+                value={input}
+                onChangeText={handleInputChange}
+                placeholder="Message..."
+                placeholderTextColor="#94A3B8"
+                multiline={true}
+                className="flex-1 font-medium text-slate-800 text-[15px] py-2.5"
+                style={{ textAlignVertical: "center" }}
+              />
+            </View>
+            <Pressable
+              onPress={handleSend}
+              disabled={sending || !input.trim()}
+              className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-slate-100" : "bg-primary active:opacity-80"
+                }`}
+            >
+              {sending ? (
+                <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#FFFFFF"} size="small" />
+              ) : (
+                <Ionicons name="paper-plane" size={20} color={sending || !input.trim() ? "#A1A1AA" : "#FFFFFF"} style={{ marginLeft: 2, marginTop: 1 }} />
+              )}
+            </Pressable>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

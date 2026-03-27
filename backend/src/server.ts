@@ -100,6 +100,38 @@ io.on("connection", (socket) => {
         return;
       }
 
+      // Check if conversation exists and members are friends
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { members: true },
+      });
+
+      if (!conversation) {
+        socket.emit("error", { message: "Conversation not found" });
+        return;
+      }
+
+      if (!conversation.isGroup) {
+        const peerItem = conversation.members.find((m) => m.userId !== user.id);
+        if (peerItem) {
+          const isFriend = await prisma.friend.findFirst({
+            where: {
+              OR: [
+                { userAId: user.id, userBId: peerItem.userId },
+                { userAId: peerItem.userId, userBId: user.id },
+              ],
+            },
+          });
+
+          if (!isFriend) {
+            socket.emit("error", {
+              message: "You are no longer friends and cannot send messages.",
+            });
+            return;
+          }
+        }
+      }
+
       // Save message in DB
       const message = await prisma.message.create({
         data: { content: content.trim(), senderId: user.id, conversationId },

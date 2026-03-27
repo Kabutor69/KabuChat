@@ -2,6 +2,7 @@ export interface Conversation {
   id: string;
   name?: string | null;
   isGroup?: boolean;
+  isFriend?: boolean;
   members: {
     id: string;
     clerkId: string;

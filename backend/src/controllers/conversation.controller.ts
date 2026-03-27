@@ -61,10 +61,20 @@ export async function createDMConversation(req: Request, res: Response) {
       },
     });
 
+    const isFriend = !!(await prisma.friend.findFirst({
+      where: {
+        OR: [
+          { userAId: user.id, userBId: friend.id },
+          { userAId: friend.id, userBId: user.id },
+        ],
+      },
+    }));
+
     if (existing) {
       return res.json({
         id: existing.id,
         isGroup: existing.isGroup,
+        isFriend,
         name: existing.name,
         members: existing.members.map((member) => ({
           id: member.user.id,
@@ -102,6 +112,7 @@ export async function createDMConversation(req: Request, res: Response) {
     res.json({
       id: conversation.id,
       isGroup: conversation.isGroup,
+      isFriend,
       name: conversation.name,
       members: conversation.members.map((member) => ({
         id: member.user.id,
@@ -132,6 +143,15 @@ export async function getUserConversations(req: Request, res: Response) {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    const friends = await prisma.friend.findMany({
+      where: {
+        OR: [{ userAId: user.id }, { userBId: user.id }],
+      },
+    });
+    const friendIds = new Set(
+      friends.map((friend) => (friend.userAId === user.id ? friend.userBId : friend.userAId))
+    );
 
     const conversations = await prisma.conversation.findMany({
       where: {
@@ -164,10 +184,20 @@ export async function getUserConversations(req: Request, res: Response) {
     });
 
     res.json(
-      conversations.map((conversation) => ({
-        id: conversation.id,
-        isGroup: conversation.isGroup,
-        name: conversation.name,
+      conversations.map((conversation) => {
+        let isFriend = true;
+        if (!conversation.isGroup) {
+          const peer = conversation.members.find((m) => m.userId !== user.id);
+          if (peer) {
+            isFriend = friendIds.has(peer.userId);
+          }
+        }
+
+        return {
+          id: conversation.id,
+          isGroup: conversation.isGroup,
+          isFriend,
+          name: conversation.name,
         members: conversation.members.map((member) => ({
           id: member.user.id,
           clerkId: member.user.clerkId,
@@ -182,7 +212,8 @@ export async function getUserConversations(req: Request, res: Response) {
               readByClerkIds: conversation.messages[0].reads.map((r: any) => r.user.clerkId),
             }
           : null,
-      })),
+        };
+      }),
     );
   } catch (error) {
     console.error("Error fetching conversations:", error);
