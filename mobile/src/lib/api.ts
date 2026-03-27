@@ -3,6 +3,7 @@ export interface Conversation {
   name?: string | null;
   isGroup?: boolean;
   isFriend?: boolean;
+  activeAt?: string;
   members: {
     id: string;
     clerkId: string;

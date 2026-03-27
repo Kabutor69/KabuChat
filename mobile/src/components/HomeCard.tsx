@@ -83,7 +83,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                 >
                     {conversation.lastMessage
                         ? `${prefix}${conversation.lastMessage.content}`
-                        : "No messages yet"}
+                        : "Start a convo"}
                 </Text>
             </View>
 

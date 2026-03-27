@@ -149,9 +149,12 @@ export async function getUserConversations(req: Request, res: Response) {
         OR: [{ userAId: user.id }, { userBId: user.id }],
       },
     });
-    const friendIds = new Set(
-      friends.map((friend) => (friend.userAId === user.id ? friend.userBId : friend.userAId))
-    );
+    
+    const friendMap = new Map<string, Date>();
+    friends.forEach((friend) => {
+      const peerId = friend.userAId === user.id ? friend.userBId : friend.userAId;
+      friendMap.set(peerId, friend.createdAt);
+    });
 
     const conversations = await prisma.conversation.findMany({
       where: {
@@ -183,20 +186,71 @@ export async function getUserConversations(req: Request, res: Response) {
       },
     });
 
+    const existingDMs = conversations.filter((c) => !c.isGroup);
+    const existingPeerIds = new Set(
+      existingDMs.map((c) => c.members.find((m) => m.userId !== user.id)?.userId)
+    );
+
+    const missingFriendIds = Array.from(friendMap.keys()).filter((id) => id && !existingPeerIds.has(id));
+
+    for (const friendId of missingFriendIds) {
+      if (!friendId) continue;
+      const newConv = await prisma.conversation.create({
+        data: {
+          isGroup: false,
+          members: {
+            create: [{ userId: user.id }, { userId: friendId }],
+          },
+        },
+        include: {
+          members: { include: { user: true } },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: {
+              sender: { select: { clerkId: true } },
+              reads: { include: { user: { select: { clerkId: true } } } },
+            },
+          },
+        },
+      });
+      conversations.push(newConv as any);
+    }
+
     res.json(
       conversations.map((conversation) => {
         let isFriend = true;
+        let activeAt = conversation.createdAt.toISOString();
+        
         if (!conversation.isGroup) {
           const peer = conversation.members.find((m) => m.userId !== user.id);
           if (peer) {
-            isFriend = friendIds.has(peer.userId);
+            isFriend = friendMap.has(peer.userId);
+            const friendCreatedAt = friendMap.get(peer.userId);
+            const lastMessageAt = conversation.messages[0]?.createdAt;
+            
+            let activeDate = conversation.createdAt;
+            if (lastMessageAt && friendCreatedAt) {
+              activeDate = lastMessageAt > friendCreatedAt ? lastMessageAt : friendCreatedAt;
+            } else if (lastMessageAt) {
+              activeDate = lastMessageAt;
+            } else if (friendCreatedAt) {
+              activeDate = friendCreatedAt;
+            }
+            activeAt = activeDate.toISOString();
           }
+        } else {
+           const lastMsgAt = conversation.messages[0]?.createdAt;
+           if (lastMsgAt) {
+              activeAt = lastMsgAt.toISOString();
+           }
         }
 
         return {
           id: conversation.id,
           isGroup: conversation.isGroup,
           isFriend,
+          activeAt,
           name: conversation.name,
         members: conversation.members.map((member) => ({
           id: member.user.id,

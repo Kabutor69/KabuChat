@@ -24,8 +24,8 @@ const ChatScreen: React.FC = () => {
       setLoading(true);
       const data = await getConversations();
       const sorted = data.sort((a,b) => {
-          const tA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
-          const tB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+          const tA = a.activeAt ? new Date(a.activeAt).getTime() : (a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0);
+          const tB = b.activeAt ? new Date(b.activeAt).getTime() : (b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0);
           return tB - tA;
       });
       setConversations(sorted);
@@ -61,7 +61,8 @@ const ChatScreen: React.FC = () => {
             
             const updated = [...prev];
             updated[index] = { 
-              ...updated[index], 
+              ...updated[index],
+              activeAt: message.createdAt,
               lastMessage: { 
                 content: message.content, 
                 createdAt: message.createdAt,
@@ -71,8 +72,8 @@ const ChatScreen: React.FC = () => {
             };
             
             return updated.sort((a,b) => {
-                const tA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
-                const tB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+                const tA = a.activeAt ? new Date(a.activeAt).getTime() : (a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0);
+                const tB = b.activeAt ? new Date(b.activeAt).getTime() : (b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0);
                 return tB - tA;
             });
           });
