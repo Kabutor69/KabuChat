@@ -1,6 +1,7 @@
 import { useSSO, useSignIn, useSignUp } from "@clerk/clerk-expo";
 import { useState } from "react";
 import { Alert } from "react-native";
+import * as Linking from "expo-linking";
 
 type EmailAuthError = {
   errors?: Array<{ message: string }>;
@@ -20,7 +21,13 @@ const useSocialAuth = () => {
     if (loadingStrategy) return;
     setLoadingStrategy(strategy);
     try {
-      const { createdSessionId, setActive, signUp } = await startSSOFlow({ strategy });
+      const redirectUrl = Linking.createURL("/sso-callback", {
+        scheme: "kabuchat",
+      });
+      const { createdSessionId, setActive, signUp } = await startSSOFlow({
+        strategy,
+        redirectUrl,
+      });
 
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
