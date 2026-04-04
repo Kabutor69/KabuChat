@@ -127,35 +127,35 @@ const SignUpScreen = () => {
 
   return (
     <View className="flex-1 bg-background dark:bg-background-dark">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 10}
-        className="flex-1"
-      >
-        <SafeAreaView className="flex-1 justify-between py-6">
-          {/* Header */}
-          <View className="items-center pt-2 relative">
-            <Pressable
-              onPress={() => router.back()}
-              className="absolute left-6 top-2 p-2 z-10"
-            >
-              <Ionicons
-                name="chevron-back"
-                size={24}
-                color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
-              />
-            </Pressable>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        {/* Header */}
+        <View className="items-center pt-2 relative">
+          <Pressable
+            onPress={() => router.back()}
+            className="absolute left-6 top-2 p-2 z-10"
+          >
+            <Ionicons
+              name="chevron-back"
+              size={24}
+              color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+            />
+          </Pressable>
 
-            <View className="w-14 h-14 rounded-[18px] bg-primary items-center justify-center shadow-lg shadow-primary/30">
-              <Ionicons name="chatbubbles" size={26} color="#F8FAFC" />
-            </View>
-            <Text className="text-2xl font-extrabold text-foreground dark:text-foreground-dark tracking-tight mt-3">
-              Create Account
-            </Text>
-            <Text className="text-foreground-muted dark:text-foreground-muted-dark text-[14px] mt-1 tracking-wide">
-              Join the KabuChat flock today 🐦
-            </Text>
+          <View className="w-14 h-14 rounded-[18px] bg-primary items-center justify-center shadow-lg shadow-primary/30">
+            <Ionicons name="chatbubbles" size={26} color="#F8FAFC" />
           </View>
+          <Text className="text-2xl font-extrabold text-foreground dark:text-foreground-dark tracking-tight mt-3">
+            Create Account
+          </Text>
+          <Text className="text-foreground-muted dark:text-foreground-muted-dark text-[14px] mt-1 tracking-wide">
+            Join the KabuChat flock today 🐦
+          </Text>
+        </View>
+
+        <KeyboardAvoidingView
+          behavior="padding"
+          className="flex-1"
+        >
 
           {/* Scrollable Form */}
           <ScrollView
@@ -291,67 +291,67 @@ const SignUpScreen = () => {
               </View>
             </View>
           </ScrollView>
+        </KeyboardAvoidingView>
 
-          {/* Bottom Actions */}
-          <View className="px-8 gap-y-3">
+        {/* Actions */}
+        <View className="px-8 gap-y-3 pb-4">
+          <Pressable
+            onPress={onEmailSignUp}
+            disabled={loadingStrategy === "email_signup"}
+            className="w-full bg-primary h-14 rounded-full items-center justify-center shadow-lg shadow-primary/30 active:scale-[0.98]"
+          >
+            {loadingStrategy === "email_signup" ? (
+              <ActivityIndicator color="#F8FAFC" />
+            ) : (
+              <Text className="text-slate-50 text-lg font-bold">
+                Create Account
+              </Text>
+            )}
+          </Pressable>
+
+          <View className="flex-row gap-x-3">
             <Pressable
-              onPress={onEmailSignUp}
-              disabled={loadingStrategy === "email_signup"}
-              className="w-full bg-primary h-14 rounded-full items-center justify-center shadow-lg shadow-primary/30 active:scale-[0.98]"
+              onPress={() => handleSocialAuth("oauth_google")}
+              className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm"
             >
-              {loadingStrategy === "email_signup" ? (
-                <ActivityIndicator color="#F8FAFC" />
-              ) : (
-                  <Text className="text-slate-50 text-lg font-bold">
-                  Create Account
-                </Text>
-              )}
+              <Ionicons name="logo-google" size={18} color="#DB4437" />
+              <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
+                Google
+              </Text>
             </Pressable>
 
-            <View className="flex-row gap-x-3">
-              <Pressable
-                onPress={() => handleSocialAuth("oauth_google")}
-                className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm"
-              >
-                <Ionicons name="logo-google" size={18} color="#DB4437" />
-                <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
-                  Google
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => handleSocialAuth("oauth_github")}
-                className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm"
-              >
-                <Ionicons
-                  name="logo-github"
-                  size={18}
-                  color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
-                />
-                <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
-                  GitHub
-                </Text>
-              </Pressable>
-            </View>
-
-            <Pressable onPress={() => router.push("./login")} className="mt-1">
-              <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center text-sm">
-                Already have an account?{" "}
-                <Text className="text-primary font-bold">Sign In</Text>
+            <Pressable
+              onPress={() => handleSocialAuth("oauth_github")}
+              className="flex-1 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark h-12 rounded-2xl items-center justify-center flex-row gap-x-2 shadow-sm"
+            >
+              <Ionicons
+                name="logo-github"
+                size={18}
+                color={resolvedTheme === "dark" ? "#E8ECFF" : "#0A0E18"}
+              />
+              <Text className="font-bold text-[13px] text-foreground dark:text-foreground-dark">
+                GitHub
               </Text>
             </Pressable>
           </View>
 
+          <Pressable onPress={() => router.push("./login")} className="mt-1">
+            <Text className="text-foreground-muted dark:text-foreground-muted-dark text-center text-sm">
+              Already have an account?{" "}
+              <Text className="text-primary font-bold">Sign In</Text>
+            </Text>
+          </Pressable>
+
           {/* Footer */}
-          <View className="px-10 mt-5">
+          <View className="px-2 mt-4">
             <Text className="text-foreground-subtle dark:text-foreground-subtle-dark text-[11px] text-center leading-4">
               By continuing, you agree to our{" "}
               <Text className="text-primary font-medium">Terms</Text> and{" "}
               <Text className="text-primary font-medium">Privacy Policy</Text>
             </Text>
           </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
+        </View>
+      </SafeAreaView>
     </View>
   );
 };

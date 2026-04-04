@@ -18,6 +18,8 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     Text,
     TextInput,
@@ -237,6 +239,11 @@ const ExploreScreen = () => {
           </Pressable>
         </View>
 
+        <KeyboardAvoidingView
+          behavior="padding"
+          className="flex-1"
+        >
+
         {/* Search Tab Content */}
         {activeTab === "search" && (
           <>
@@ -395,6 +402,7 @@ const ExploreScreen = () => {
             )}
           </>
         )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );

@@ -220,23 +220,7 @@ export async function searchUsers(req: Request, res: Response) {
       return;
     }
 
-    const fallbackUsers = await prisma.user.findMany({
-      where: {
-        clerkId: { not: clerkId },
-      },
-      select: {
-        id: true,
-        clerkId: true,
-        username: true,
-        avatar: true,
-        createdAt: true,
-      },
-      take: 20,
-      orderBy: { createdAt: "desc" },
-    });
-
-    const enrichedFallbackUsers = await enrichSearchUsers(fallbackUsers, currentUser.id);
-    res.json(enrichedFallbackUsers);
+    res.json([]);
     return;
   }
 

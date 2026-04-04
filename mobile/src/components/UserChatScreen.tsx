@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getConversations,
@@ -45,6 +46,7 @@ const UserChatScreen: React.FC = () => {
 
   const flatListRef = useRef<FlatList>(null);
   const socketHandlersRef = useRef<any>(null);
+  const headerHeight = useHeaderHeight();
 
   const loadMessages = useCallback(async () => {
     if (!conversationId) return;
@@ -268,39 +270,41 @@ const UserChatScreen: React.FC = () => {
   const headerAvatar = conversation?.isGroup ? null : peer?.avatar;
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top", "bottom"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
-        {/* Header */}
-        <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark shadow-sm z-10 w-full mb-1">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-10 w-10 active:opacity-70 items-center justify-center mr-1"
-            hitSlop={10}
-          >
-            <Ionicons name="chevron-back" size={26} color={isDark ? "#E8ECFF" : "#0A0E18"} />
-          </Pressable>
-          
-          <View className="flex-1 flex-row items-center">
-            {headerAvatar ? (
-              <Image 
-                source={{ uri: headerAvatar }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }} 
-                contentFit="cover"
-              />
-            ) : (
-              <View className="w-9 h-9 rounded-full bg-surface dark:bg-surface-dark items-center justify-center border border-border dark:border-border-dark">
-                <Ionicons name="person" size={18} color={isDark ? "#A0A9BD" : "#6B7683"} />
-              </View>
-            )}
-            
-            <View className="ml-3 flex-1 flex-col justify-center">
-              <Text className="text-lg font-bold text-foreground dark:text-foreground-dark" numberOfLines={1}>{headerName}</Text>
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top"]}>
+      {/* Header moved outside KeyboardAvoidingView */}
+      <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark shadow-sm z-10 w-full mb-1">
+        <Pressable
+          onPress={() => router.back()}
+          className="h-10 w-10 active:opacity-70 items-center justify-center mr-1"
+          hitSlop={10}
+        >
+          <Ionicons name="chevron-back" size={26} color={isDark ? "#E8ECFF" : "#0A0E18"} />
+        </Pressable>
+        
+        <View className="flex-1 flex-row items-center">
+          {headerAvatar ? (
+            <Image 
+              source={{ uri: headerAvatar }} 
+              style={{ width: 36, height: 36, borderRadius: 18 }} 
+              contentFit="cover"
+            />
+          ) : (
+            <View className="w-9 h-9 rounded-full bg-surface dark:bg-surface-dark items-center justify-center border border-border dark:border-border-dark">
+              <Ionicons name="person" size={18} color={isDark ? "#A0A9BD" : "#6B7683"} />
             </View>
+          )}
+          
+          <View className="ml-3 flex-1 flex-col justify-center">
+            <Text className="text-lg font-bold text-foreground dark:text-foreground-dark" numberOfLines={1}>{headerName}</Text>
           </View>
         </View>
+      </View>
+
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : headerHeight + 30}
+        className="flex-1"
+      >
 
         {loading && messages.length === 0 ? (
           <View className="flex-1 items-center justify-center">
