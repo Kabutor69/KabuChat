@@ -1,35 +1,11 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
-
-function toChatMessagePayload(message: {
-  id: string;
-  content: string;
-  createdAt: Date;
-  sender: {
-    id: string;
-    clerkId: string;
-    username: string | null;
-    avatar: string | null;
-  };
-  reads: {
-    user: {
-      clerkId: string;
-    };
-  }[];
-}) {
-  return {
-    id: message.id,
-    content: message.content,
-    createdAt: message.createdAt,
-    sender: message.sender,
-    readByClerkIds: message.reads.map((read) => read.user.clerkId),
-  };
-}
+import { messageInclude, toSocketPayload } from "../lib/message.helpers.js";
 
 export async function sendMessage(req: Request, res: Response): Promise<void> {
   try {
     const clerkId = req.userId;
-    const { conversationId, content } = req.body;
+    const { conversationId, content, replyToId } = req.body;
 
     if (!clerkId) {
       res.status(401).json({ error: "Unauthorized" });
@@ -86,22 +62,23 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
         content: content.trim(),
         senderId: user.id,
         conversationId,
+        ...(replyToId ? { replyToId } : {}),
       },
-      include: {
-        sender: true,
-        reads: {
-          include: {
-            user: {
-              select: {
-                clerkId: true,
-              },
-            },
-          },
-        },
-      },
+      include: messageInclude,
     });
 
-    res.json(toChatMessagePayload(message));
+    const payload = toSocketPayload(message);
+
+    // Emit to socket room if io is available
+    const io = req.app.get("io");
+    if (io) {
+      io.to(conversationId).emit("newMessage", {
+        ...payload,
+        conversationId,
+      });
+    }
+
+    res.json(payload);
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({ error: "Failed to send message" });
@@ -155,24 +132,13 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
 
     const messages = await prisma.message.findMany({
       where: { conversationId },
-      include: {
-        sender: true,
-        reads: {
-          include: {
-            user: {
-              select: {
-                clerkId: true,
-              },
-            },
-          },
-        },
-      },
+      include: messageInclude,
       orderBy: {
         createdAt: "asc",
       },
     });
 
-    res.json(messages.map(toChatMessagePayload));
+    res.json(messages.map(toSocketPayload));
   } catch (error) {
     console.error("Error fetching messages:", error);
     res.status(500).json({ error: "Failed to fetch messages" });
@@ -270,5 +236,187 @@ export async function markConversationAsRead(
   } catch (error) {
     console.error("Error marking messages as read:", error);
     res.status(500).json({ error: "Failed to mark messages as read" });
+  }
+}
+
+export async function deleteMessage(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const clerkId = req.userId;
+    const messageId = Array.isArray(req.params.messageId)
+      ? req.params.messageId[0]
+      : req.params.messageId;
+
+    if (!clerkId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!messageId) {
+      res.status(400).json({ error: "Missing messageId" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    if (message.senderId !== user.id) {
+      res.status(403).json({ error: "You can only delete your own messages" });
+      return;
+    }
+
+    if (message.isDeleted) {
+      res.status(400).json({ error: "Message already deleted" });
+      return;
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(message.conversationId).emit("messageDeleted", {
+        messageId: updated.id,
+        conversationId: message.conversationId,
+      });
+    }
+
+    res.json({ success: true, messageId: updated.id });
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    res.status(500).json({ error: "Failed to delete message" });
+  }
+}
+
+export async function editMessage(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const clerkId = req.userId;
+    const messageId = Array.isArray(req.params.messageId)
+      ? req.params.messageId[0]
+      : req.params.messageId;
+    const { content } = req.body;
+
+    if (!clerkId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!messageId) {
+      res.status(400).json({ error: "Missing messageId" });
+      return;
+    }
+
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      res.status(400).json({ error: "Message content cannot be empty" });
+      return;
+    }
+
+    if (content.length > 5000) {
+      res.status(400).json({ error: "Message content too long (max 5000 characters)" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    if (message.senderId !== user.id) {
+      res.status(403).json({ error: "You can only edit your own messages" });
+      return;
+    }
+
+    if (message.isDeleted) {
+      res.status(400).json({ error: "Cannot edit a deleted message" });
+      return;
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        content: content.trim(),
+        isEdited: true,
+        editedAt: new Date(),
+      },
+      include: {
+        sender: true,
+        reads: {
+          include: {
+            user: {
+              select: {
+                clerkId: true,
+              },
+            },
+          },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            isDeleted: true,
+            sender: {
+              select: {
+                clerkId: true,
+                username: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const payload = toSocketPayload(updated);
+
+    // Emit to socket room
+    const io = req.app.get("io");
+    if (io) {
+      io.to(message.conversationId).emit("messageEdited", {
+        ...payload,
+        conversationId: message.conversationId,
+      });
+    }
+
+    res.json(payload);
+  } catch (error) {
+    console.error("Error editing message:", error);
+    res.status(500).json({ error: "Failed to edit message" });
   }
 }

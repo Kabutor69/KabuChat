@@ -20,16 +20,16 @@ export const HomeCard: React.FC<HomeCardProps> = ({
         conversation.members.find((member) => member.clerkId !== currentUserId) ||
         conversation.members[0];
 
-    const isUnread = 
+    const isUnread =
         conversation.lastMessage?.sender?.clerkId &&
         conversation.lastMessage.sender.clerkId !== currentUserId &&
         !(conversation.lastMessage.readByClerkIds?.includes(currentUserId ?? ""));
 
     const isMe = conversation.lastMessage?.sender?.clerkId === currentUserId;
-    const senderName = isMe 
-        ? "You" 
+    const senderName = isMe
+        ? "You"
         : conversation.members.find(m => m.clerkId === conversation.lastMessage?.sender?.clerkId)?.name?.split(" ")[0] || "Someone";
-    
+
     // We only explicitly prepend the sender name in group chats
     // Or in DMs if it's "You:"
     const showPrefix = conversation.lastMessage && (conversation.isGroup || isMe);
@@ -80,7 +80,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                     className={`text-sm tracking-tight ${isUnread ? 'font-black text-foreground dark:text-foreground-dark' : 'font-bold text-foreground-muted dark:text-foreground-muted-dark'}`}
                 >
                     {conversation.lastMessage
-                        ? `${prefix}${conversation.lastMessage.content}`
+                        ? `${prefix}${conversation.lastMessage.content || "This message was deleted"}`
                         : "Start a convo"}
                 </Text>
             </View>
@@ -88,9 +88,9 @@ export const HomeCard: React.FC<HomeCardProps> = ({
             {/* Action/chevron Section */}
             <View className="ml-3 justify-center items-center">
                 {isUnread ? (
-                   <View className="w-3 h-3 rounded-full bg-primary" />
+                    <View className="w-3 h-3 rounded-full bg-primary" />
                 ) : (
-                   <Ionicons name="chevron-forward" size={16} color="#E2E8F0" />
+                    <Ionicons name="chevron-forward" size={16} color="#E2E8F0" />
                 )}
             </View>
         </Pressable>

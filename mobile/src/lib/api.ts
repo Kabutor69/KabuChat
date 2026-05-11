@@ -31,12 +31,23 @@ export interface ChatMessage {
   id: string;
   content: string;
   createdAt: string;
+  isDeleted?: boolean;
+  isEdited?: boolean;
   sender: {
     id: string;
     username?: string | null;
     clerkId: string;
   };
   readByClerkIds?: string[];
+  replyTo?: {
+    id: string;
+    content: string;
+    isDeleted?: boolean;
+    sender: {
+      clerkId: string;
+      username?: string | null;
+    };
+  } | null;
 }
 
 export interface FriendRequest {
@@ -119,6 +130,19 @@ export async function markConversationAsRead(conversationId: string): Promise<{
       method: "POST",
     },
   );
+}
+
+export async function deleteMessage(messageId: string): Promise<{ success: boolean; messageId: string }> {
+  return request<{ success: boolean; messageId: string }>(`/messages/${messageId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function editMessage(messageId: string, content: string): Promise<ChatMessage> {
+  return request<ChatMessage>(`/messages/${messageId}`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  });
 }
 
 export async function getMe(): Promise<UserSearchItem & { username: string | null }> {

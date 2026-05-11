@@ -7,18 +7,17 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique
-  username  String?
-  avatar    String?
-  createdAt DateTime @default(now())
-
-  messages        Message[]
-  messageReads    MessageRead[]
-  members         ConversationMember[]
-  sentRequests    FriendRequest[]      @relation("SentRequests")
-  receivedRequests FriendRequest[]     @relation("ReceivedRequests")
-  pushTokens      PushToken[]
+  id               String               @id @default(uuid())
+  clerkId          String               @unique
+  username         String?
+  avatar           String?
+  createdAt        DateTime             @default(now())
+  members          ConversationMember[]
+  receivedRequests FriendRequest[]      @relation("ReceivedRequests")
+  sentRequests     FriendRequest[]      @relation("SentRequests")
+  messages         Message[]
+  messageReads     MessageRead[]
+  pushTokens       PushToken[]
 }
 
 model PushToken {
@@ -26,19 +25,17 @@ model PushToken {
   userId    String
   token     String   @unique
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FriendRequest {
-  id        String   @id @default(uuid())
-  senderId  String
+  id         String   @id @default(uuid())
+  senderId   String
   receiverId String
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
-
-  sender    User     @relation("SentRequests", fields: [senderId], references: [id])
-  receiver  User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  sender     User     @relation("SentRequests", fields: [senderId], references: [id])
 }
 
 model Friend {
@@ -49,33 +46,37 @@ model Friend {
 }
 
 model Conversation {
-  id        String   @id @default(uuid())
+  id        String               @id @default(uuid())
   name      String?
-  isGroup   Boolean  @default(false)
-  createdAt DateTime @default(now())
-
+  isGroup   Boolean              @default(false)
+  createdAt DateTime             @default(now())
   members   ConversationMember[]
   messages  Message[]
 }
 
 model ConversationMember {
-  id             String @id @default(uuid())
+  id             String       @id @default(uuid())
   userId         String
   conversationId String
-
-  user           User         @relation(fields: [userId], references: [id])
   conversation   Conversation @relation(fields: [conversationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
 }
 
 model Message {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   content        String
   senderId       String
   conversationId String
-  createdAt      DateTime @default(now())
-
-  sender         User         @relation(fields: [senderId], references: [id])
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+  editedAt       DateTime?
+  isDeleted      Boolean       @default(false)
+  isEdited       Boolean       @default(false)
+  replyToId      String?
+  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+  replyTo        Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]     @relation("MessageReplies")
+  sender         User          @relation(fields: [senderId], references: [id])
   reads          MessageRead[]
 }
 
@@ -84,7 +85,6 @@ model MessageRead {
   messageId String
   userId    String
   readAt    DateTime @default(now())
-
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
