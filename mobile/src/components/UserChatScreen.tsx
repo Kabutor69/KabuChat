@@ -15,6 +15,7 @@ import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useMessageActions } from "../hooks/useMessageActions";
+import { MessageMenu } from "./MessageMenu";
 
 const UserChatScreen: React.FC = () => {
   const { user } = useUser();
@@ -36,7 +37,14 @@ const UserChatScreen: React.FC = () => {
 
   const { messages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, user?.id);
 
-  const { handleLongPress } = useMessageActions(
+  const {
+    handleLongPress,
+    menuVisible,
+    selectedMessage,
+    menuPosition,
+    closeMenu,
+    handleAction,
+  } = useMessageActions(
     user?.id,
     socketConnected,
     setEditingMessage,
@@ -44,6 +52,7 @@ const UserChatScreen: React.FC = () => {
     setInput,
     inputRef
   );
+
 
   useEffect(() => {
     if (!conversationId) return;
@@ -130,85 +139,99 @@ const UserChatScreen: React.FC = () => {
   const headerAvatar = conversation?.isGroup ? null : peer?.avatar;
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top"]}>
-      <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark shadow-sm z-10 w-full mb-1">
-        <Pressable onPress={() => router.back()} className="h-10 w-10 active:opacity-70 items-center justify-center mr-1" hitSlop={10}>
-          <Ionicons name="chevron-back" size={26} color={isDark ? "#E8ECFF" : "#0A0E18"} />
-        </Pressable>
-        <View className="flex-1 flex-row items-center">
-          {headerAvatar ? (
-            <Image source={{ uri: headerAvatar }} style={{ width: 36, height: 36, borderRadius: 18 }} contentFit="cover" />
-          ) : (
-            <View className="w-9 h-9 rounded-full bg-surface dark:bg-surface-dark items-center justify-center border border-border dark:border-border-dark">
-              <Ionicons name="person" size={18} color={isDark ? "#A0A9BD" : "#6B7683"} />
+    <View className="flex-1">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark" edges={["top"]}>
+        <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-border-dark bg-surface-elevated dark:bg-surface-elevated-dark shadow-sm z-10 w-full mb-1">
+          <Pressable onPress={() => router.back()} className="h-10 w-10 active:opacity-70 items-center justify-center mr-1" hitSlop={10}>
+            <Ionicons name="chevron-back" size={26} color={isDark ? "#E8ECFF" : "#0A0E18"} />
+          </Pressable>
+          <View className="flex-1 flex-row items-center">
+            {headerAvatar ? (
+              <Image source={{ uri: headerAvatar }} style={{ width: 36, height: 36, borderRadius: 18 }} contentFit="cover" />
+            ) : (
+              <View className="w-9 h-9 rounded-full bg-surface dark:bg-surface-dark items-center justify-center border border-border dark:border-border-dark">
+                <Ionicons name="person" size={18} color={isDark ? "#A0A9BD" : "#6B7683"} />
+              </View>
+            )}
+            <View className="ml-3 flex-1 flex-col justify-center">
+              <Text className="text-lg font-bold text-foreground dark:text-foreground-dark" numberOfLines={1}>
+                {headerName}
+              </Text>
             </View>
-          )}
-          <View className="ml-3 flex-1 flex-col justify-center">
-            <Text className="text-lg font-bold text-foreground dark:text-foreground-dark" numberOfLines={1}>
-              {headerName}
-            </Text>
           </View>
         </View>
-      </View>
 
-      <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : headerHeight + 30} className="flex-1">
-        {loading && messages.length === 0 && (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="#6366F1" />
-          </View>
-        )}
+        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : headerHeight + 30} className="flex-1">
+          {loading && messages.length === 0 && (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator color="#6366F1" />
+            </View>
+          )}
 
-        <FlatList
-          ref={flatListRef}
-          data={[...messages].reverse()}
-          inverted={true}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, paddingTop: 8 }}
-          renderItem={({ item }) => (
-            <MessageBubble
-              item={item}
-              isMe={item.sender.clerkId === user?.id}
+          <FlatList
+            ref={flatListRef}
+            data={[...messages].reverse()}
+            inverted={true}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, paddingTop: 8 }}
+            renderItem={({ item }) => (
+              <MessageBubble
+                item={item}
+                isMe={item.sender.clerkId === user?.id}
+                isDark={isDark}
+                isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
+                onLongPress={handleLongPress}
+              />
+            )}
+            style={{ flex: 1 }}
+          />
+
+          {isPeerTyping && (
+            <View className="px-5 mb-2">
+              <Text className="text-xs font-semibold text-foreground-subtle dark:text-foreground-subtle-dark italic">Typing...</Text>
+            </View>
+          )}
+
+          {conversation && !conversation.isGroup && conversation.isFriend === false ? (
+            <View className="px-5 py-4 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark items-center justify-center">
+              <Text className="text-foreground-muted dark:text-foreground-muted-dark font-medium text-center leading-5 px-4 mb-2">
+                You are no longer friends and cannot reply to this conversation.
+              </Text>
+            </View>
+          ) : (
+            <ChatInput
+              input={input}
+              setInput={setInput}
+              onInputChange={handleInputChange}
+              onSend={handleSend}
+              sending={sending}
               isDark={isDark}
-              isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
-              onLongPress={handleLongPress}
+              editingMessage={editingMessage}
+              cancelEdit={() => {
+                setEditingMessage(null);
+                setInput("");
+              }}
+              replyingToMessage={replyingToMessage}
+              cancelReply={() => setReplyingToMessage(null)}
+              inputRef={inputRef}
             />
           )}
-          style={{ flex: 1 }}
-        />
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
-        {isPeerTyping && (
-          <View className="px-5 mb-2">
-            <Text className="text-xs font-semibold text-foreground-subtle dark:text-foreground-subtle-dark italic">Typing...</Text>
-          </View>
-        )}
-
-        {conversation && !conversation.isGroup && conversation.isFriend === false ? (
-          <View className="px-5 py-4 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark items-center justify-center">
-            <Text className="text-foreground-muted dark:text-foreground-muted-dark font-medium text-center leading-5 px-4 mb-2">
-              You are no longer friends and cannot reply to this conversation.
-            </Text>
-          </View>
-        ) : (
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onInputChange={handleInputChange}
-            onSend={handleSend}
-            sending={sending}
-            isDark={isDark}
-            editingMessage={editingMessage}
-            cancelEdit={() => {
-              setEditingMessage(null);
-              setInput("");
-            }}
-            replyingToMessage={replyingToMessage}
-            cancelReply={() => setReplyingToMessage(null)}
-            inputRef={inputRef}
-          />
-        )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <MessageMenu
+        isVisible={menuVisible}
+        onClose={closeMenu}
+        onAction={handleAction}
+        position={menuPosition}
+        isMe={selectedMessage?.sender.clerkId === user?.id}
+        isDark={isDark}
+        message={selectedMessage}
+      />
+    </View>
   );
 };
+
+
 
 export default UserChatScreen;

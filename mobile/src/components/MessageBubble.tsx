@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, LayoutRectangle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { type ChatMessage } from "../lib/api";
 
@@ -8,7 +8,7 @@ interface MessageBubbleProps {
   isMe: boolean;
   isDark: boolean;
   isLastRead: boolean;
-  onLongPress: (message: ChatMessage) => void;
+  onLongPress: (message: ChatMessage, position: LayoutRectangle) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -18,6 +18,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isLastRead,
   onLongPress,
 }) => {
+  const bubbleRef = React.useRef<View>(null);
+
+  const handleLongPress = () => {
+    bubbleRef.current?.measureInWindow((x, y, width, height) => {
+      onLongPress(item, { x, y, width, height });
+    });
+  };
+
+
   if (item.isDeleted) {
     return (
       <View
@@ -53,11 +62,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   return (
-    <Pressable
-      onLongPress={() => onLongPress(item)}
-      delayLongPress={400}
+    <View
+      ref={bubbleRef}
       className={`max-w-[75%] mb-2 ${isMe ? "self-end" : "self-start"}`}
     >
+      <Pressable
+        onLongPress={handleLongPress}
+        delayLongPress={400}
+      >
+
       {item.replyTo ? (
         <View
           className={`px-3 py-1.5 mb-0.5 rounded-t-lg ${isMe ? "rounded-tr-none" : "rounded-tl-none"}`}
@@ -85,6 +98,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       <View
         className={`px-3.5 py-2.5 ${
+
+
           isMe
             ? "bg-primary rounded-xl rounded-tr-none shadow-sm"
             : "bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-xl rounded-tl-none shadow-sm"
@@ -110,6 +125,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           ) : null}
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 };
