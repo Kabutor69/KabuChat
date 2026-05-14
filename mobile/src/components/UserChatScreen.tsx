@@ -129,10 +129,46 @@ const UserChatScreen: React.FC = () => {
     }
   };
 
+  const messagesReversed = useMemo(() => [...messages].reverse(), [messages]);
+
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+
+  const isToday = (d: Date) => isSameDay(d, new Date());
+
+  const formatMessageDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d.getDate()} ${months[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+  };
+
+  const formatMessageTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    let hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? "pm" : "am";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
+    return `${hours}:${minutesStr}${ampm}`;
+  };
+
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  const handleReplyPress = (replyToId: string) => {
+    const index = messagesReversed.findIndex((m) => m.id === replyToId);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      setHighlightedMessageId(replyToId);
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  };
+
   const lastReadMessageId = useMemo(() => {
-    const reversed = [...messages].reverse();
-    return reversed.find((m) => m.sender.clerkId === user?.id && (m.readByClerkIds?.length ?? 0) > 0)?.id;
-  }, [messages, user?.id]);
+    return messagesReversed.find((m) => m.sender.clerkId === user?.id && (m.readByClerkIds?.length ?? 0) > 0)?.id;
+  }, [messagesReversed, user?.id]);
 
   const peer = conversation?.members.find((m) => m.clerkId !== user?.id);
   const headerName = conversation?.isGroup ? conversation.name : peer?.name || "Chat";
@@ -170,19 +206,56 @@ const UserChatScreen: React.FC = () => {
 
           <FlatList
             ref={flatListRef}
-            data={[...messages].reverse()}
+            data={messagesReversed}
             inverted={true}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, paddingTop: 8 }}
-            renderItem={({ item }) => (
-              <MessageBubble
-                item={item}
-                isMe={item.sender.clerkId === user?.id}
-                isDark={isDark}
-                isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
-                onLongPress={handleLongPress}
-              />
-            )}
+            onScrollToIndexFailed={(info) => {
+              flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+            }}
+            renderItem={({ item, index }) => {
+              const olderItem = messagesReversed[index + 1];
+              const newerItem = messagesReversed[index - 1];
+
+              const current = new Date(item.createdAt);
+              let headerText = null;
+
+              if (!olderItem || !isSameDay(current, new Date(olderItem.createdAt))) {
+                headerText = formatMessageDate(item.createdAt);
+              } else if (isToday(current)) {
+                const olderDate = new Date(olderItem.createdAt);
+                const diffMins = (current.getTime() - olderDate.getTime()) / 60000;
+                if (diffMins > 30) {
+                  headerText = formatMessageTime(item.createdAt);
+                }
+              }
+
+              const marginBottom = newerItem && item.sender.clerkId === newerItem.sender.clerkId ? 1 : 8;
+
+              return (
+                <View style={{ marginBottom }}>
+                  {headerText && (
+                    <View className="items-center my-4">
+                      <View className="bg-surface-elevated dark:bg-surface-elevated-dark px-3 py-1 rounded-full border border-border dark:border-border-dark shadow-sm">
+                        <Text className="text-[11px] font-semibold text-foreground-muted dark:text-foreground-muted-dark uppercase tracking-wider">
+                          {headerText}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  <MessageBubble
+                    item={item}
+                    isMe={item.sender.clerkId === user?.id}
+                    isDark={isDark}
+                    isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
+                    onLongPress={handleLongPress}
+                    onReplyPress={handleReplyPress}
+                    isHighlighted={highlightedMessageId === item.id}
+                    onSwipeToReply={setReplyingToMessage}
+                  />
+                </View>
+              );
+            }}
             style={{ flex: 1 }}
           />
 
