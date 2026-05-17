@@ -3,6 +3,8 @@ import { Alert } from "react-native";
 import { connectSocket, getSocket } from "../lib/socket";
 import { getMessages, markConversationAsRead, type ChatMessage } from "../lib/api";
 
+import { cacheGet, cacheSet, outboxGet, outboxRemove } from "../lib/cache";
+
 export const useChatSocket = (conversationId: string | undefined, userId: string | undefined) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -14,10 +16,19 @@ export const useChatSocket = (conversationId: string | undefined, userId: string
     if (!conversationId) return;
     try {
       setLoading(true);
+      const cached = cacheGet<ChatMessage[]>(`messages_${conversationId}`);
+      if (cached) {
+        setMessages(cached);
+      }
       const data = await getMessages(conversationId);
       setMessages(data);
+      cacheSet(`messages_${conversationId}`, data);
     } catch (error) {
       console.error("Failed to load messages", error);
+      const cached = cacheGet<ChatMessage[]>(`messages_${conversationId}`);
+      if (cached) {
+        setMessages(cached);
+      }
     } finally {
       setLoading(false);
     }
@@ -41,80 +52,102 @@ export const useChatSocket = (conversationId: string | undefined, userId: string
       try {
         await loadMessages();
         socket = await connectSocket();
-        setSocketConnected(true);
-        socket.emit("joinRoom", conversationId);
-
-        const handleNewMessage = (message: ChatMessage) => {
-          setMessages((prev) => {
-            if (prev.some((item) => item.id === message.id)) return prev;
-            return [...prev, message];
-          });
-          if (message.sender.clerkId !== userId) void markRead();
-        };
-
-        const handleTyping = (payload: { conversationId: string; clerkId: string; isTyping: boolean }) => {
-          if (payload.conversationId !== conversationId) return;
-          if (payload.clerkId === userId) return;
-          setIsPeerTyping(payload.isTyping);
-        };
-
-        const handleMessagesRead = (payload: { conversationId: string; readerClerkId: string; messageIds: string[] }) => {
-          if (payload.conversationId !== conversationId) return;
-          setMessages((prev) =>
-            prev.map((message) => {
-              if (!payload.messageIds.includes(message.id)) return message;
-              const currentReadBy = message.readByClerkIds ?? [];
-              if (currentReadBy.includes(payload.readerClerkId)) return message;
-              return { ...message, readByClerkIds: [...currentReadBy, payload.readerClerkId] };
-            })
-          );
-        };
-
-        const handleMessageDeleted = (payload: { messageId: string; conversationId: string }) => {
-          if (payload.conversationId !== conversationId) return;
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === payload.messageId ? { ...msg, isDeleted: true, content: "" } : msg))
-          );
-        };
-
-        const handleMessageEdited = (payload: ChatMessage & { conversationId: string }) => {
-          if (payload.conversationId !== conversationId) return;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === payload.id
-                ? { ...msg, content: payload.content, isEdited: payload.isEdited, replyTo: payload.replyTo }
-                : msg
-            )
-          );
-        };
-
-        const handleConnect = () => {
+        if (socket) {
           setSocketConnected(true);
           socket.emit("joinRoom", conversationId);
-        };
 
-        const handleDisconnect = () => setSocketConnected(false);
-        const handleError = (payload: { message: string }) => Alert.alert("Error", payload.message || "Something went wrong.");
+          const handleNewMessage = (message: ChatMessage) => {
+            setMessages((prev) => {
+              if (prev.some((item) => item.id === message.id)) return prev;
+              return [...prev, message];
+            });
+            if (message.sender.clerkId !== userId) void markRead();
+          };
 
-        socket.on("newMessage", handleNewMessage);
-        socket.on("typing", handleTyping);
-        socket.on("messagesRead", handleMessagesRead);
-        socket.on("messageDeleted", handleMessageDeleted);
-        socket.on("messageEdited", handleMessageEdited);
-        socket.on("connect", handleConnect);
-        socket.on("disconnect", handleDisconnect);
-        socket.on("error", handleError);
+          const handleTyping = (payload: { conversationId: string; clerkId: string; isTyping: boolean }) => {
+            if (payload.conversationId !== conversationId) return;
+            if (payload.clerkId === userId) return;
+            setIsPeerTyping(payload.isTyping);
+          };
 
-        socketHandlersRef.current = {
-          newMessage: handleNewMessage,
-          typing: handleTyping,
-          messagesRead: handleMessagesRead,
-          messageDeleted: handleMessageDeleted,
-          messageEdited: handleMessageEdited,
-          connect: handleConnect,
-          disconnect: handleDisconnect,
-          error: handleError,
-        };
+          const handleMessagesRead = (payload: { conversationId: string; readerClerkId: string; messageIds: string[] }) => {
+            if (payload.conversationId !== conversationId) return;
+            setMessages((prev) =>
+              prev.map((message) => {
+                if (!payload.messageIds.includes(message.id)) return message;
+                const currentReadBy = message.readByClerkIds ?? [];
+                if (currentReadBy.includes(payload.readerClerkId)) return message;
+                return { ...message, readByClerkIds: [...currentReadBy, payload.readerClerkId] };
+              })
+            );
+          };
+
+          const handleMessageDeleted = (payload: { messageId: string; conversationId: string }) => {
+            if (payload.conversationId !== conversationId) return;
+            setMessages((prev) =>
+              prev.map((msg) => (msg.id === payload.messageId ? { ...msg, isDeleted: true, content: "" } : msg))
+            );
+          };
+
+          const handleMessageEdited = (payload: ChatMessage & { conversationId: string }) => {
+            if (payload.conversationId !== conversationId) return;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === payload.id
+                  ? { ...msg, content: payload.content, isEdited: payload.isEdited, replyTo: payload.replyTo }
+                  : msg
+              )
+            );
+          };
+
+          const handleConnect = () => {
+            setSocketConnected(true);
+            socket.emit("joinRoom", conversationId);
+            
+            // Sync outbox
+            const outboxMessages = outboxGet();
+            if (outboxMessages && outboxMessages.length > 0) {
+              outboxMessages.forEach((msg) => {
+                if (msg.conversationId === conversationId) {
+                  socket.emit("sendMessage", {
+                    conversationId: msg.conversationId,
+                    content: msg.content,
+                    ...(msg.replyToId ? { replyToId: msg.replyToId } : {}),
+                  });
+                  outboxRemove(msg.id);
+                  // Optionally, we could remove the optimistic message from UI here, 
+                  // but we'll let the server response 'newMessage' append the real one,
+                  // and we might end up with a duplicate momentarily unless we filter it.
+                  // For simplicity, we just filter out optimistic ids locally.
+                  setMessages(prev => prev.filter(m => m.id !== msg.id));
+                }
+              });
+            }
+          };
+
+          const handleDisconnect = () => setSocketConnected(false);
+          const handleError = (payload: { message: string }) => Alert.alert("Error", payload.message || "Something went wrong.");
+
+          socket.on("newMessage", handleNewMessage);
+          socket.on("typing", handleTyping);
+          socket.on("messagesRead", handleMessagesRead);
+          socket.on("messageDeleted", handleMessageDeleted);
+          socket.on("messageEdited", handleMessageEdited);
+          socket.on("connect", handleConnect);
+          socket.on("disconnect", handleDisconnect);
+          socket.on("error", handleError);
+
+          socketHandlersRef.current = {
+            newMessage: handleNewMessage,
+            typing: handleTyping,
+            messagesRead: handleMessagesRead,
+            messageDeleted: handleMessageDeleted,
+            messageEdited: handleMessageEdited,
+            connect: handleConnect,
+            disconnect: handleDisconnect,
+            error: handleError,
+          };
+        }
       } catch (error) {
         console.error("Socket setup failed:", error);
         setSocketConnected(false);

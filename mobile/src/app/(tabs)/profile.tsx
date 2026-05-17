@@ -2,6 +2,8 @@ import EditProfile from "@/components/EditProfile";
 import { useThemePreference, type ThemePreference } from "@/contexts/theme.context";
 import { getMe } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import NetInfo from "@react-native-community/netinfo";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sentry from "@sentry/react-native";
@@ -34,12 +36,30 @@ const ProfileScreen = () => {
   const { user } = useUser();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dbUsername, setDbUsername] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const { preference, setPreference, resolvedTheme } = useThemePreference();
 
   useEffect(() => {
+    NetInfo.fetch().then(state => setIsOffline(!state.isConnected));
+    
+    const cached = cacheGet<any>("profile_me");
+    if (cached) {
+      if (cached.username) setDbUsername(cached.username);
+      if (cached._updatedAt) setLastUpdated(cached._updatedAt);
+    }
+    
     getMe().then((data: any) => {
-      if (data?.username) setDbUsername(data.username);
-    }).catch(() => { });
+      if (data?.username) {
+        setDbUsername(data.username);
+        const updatedData = { ...data, _updatedAt: Date.now() };
+        cacheSet("profile_me", updatedData);
+        setLastUpdated(updatedData._updatedAt);
+      }
+      setIsOffline(false);
+    }).catch(() => {
+      setIsOffline(true);
+    });
   }, [editModalVisible]); // re-fetch after edit modal closes
 
   const handleMenuItemPress = (label: string) => {
@@ -91,6 +111,11 @@ const ProfileScreen = () => {
                   {user?.primaryEmailAddress?.emailAddress}
                 </Text>
               </View>
+              {isOffline && (
+                <Text className="text-[10px] text-red-500 font-bold mt-2">
+                  Offline {lastUpdated ? `(Last updated: ${new Date(lastUpdated).toLocaleDateString()})` : ''}
+                </Text>
+              )}
             </View>
 
             {/* STATS SECTION */}

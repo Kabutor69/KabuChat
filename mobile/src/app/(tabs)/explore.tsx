@@ -14,6 +14,9 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import NetInfo from '@react-native-community/netinfo';
 import {
     ActivityIndicator,
     Alert,
@@ -74,10 +77,17 @@ const ExploreScreen = () => {
 
     try {
       setLoading(true);
+      const cached = cacheGet<UserSearchItem[]>("explore_friends");
+      if (cached) setFriends(cached);
+      
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) return;
+
       const friendsList = await getFriends();
       setFriends(friendsList);
+      cacheSet("explore_friends", friendsList);
     } catch {
-      Alert.alert("Error", "Could not load friends");
+      // Silently fail or use cache
     } finally {
       setLoading(false);
     }
@@ -105,8 +115,18 @@ const ExploreScreen = () => {
 
     try {
       setLoading(true);
+      const cached = cacheGet<UserSearchItem[]>(`search_${query}`);
+      if (cached) setUsers(cached);
+
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        if (!cached) Alert.alert("Offline", "Cannot search while offline.");
+        return;
+      }
+
       const result = await searchUsers(query);
       setUsers(result);
+      cacheSet(`search_${query}`, result);
     } catch {
       Alert.alert("Search failed", "Could not fetch users. Please try again.");
     } finally {

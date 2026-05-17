@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import NetInfo from '@react-native-community/netinfo';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
 
@@ -9,9 +10,15 @@ export function configureSocketAuth(getToken: () => Promise<string | null>) {
   authTokenGetter = getToken;
 }
 
-export async function connectSocket(): Promise<Socket> {
+export async function connectSocket(): Promise<Socket | null> {
   if (socket?.connected) {
     return socket;
+  }
+
+  const netInfo = await NetInfo.fetch();
+  if (!netInfo.isConnected) {
+    console.log("Socket skipped: Offline");
+    return null;
   }
 
   const token = authTokenGetter ? await authTokenGetter() : null;

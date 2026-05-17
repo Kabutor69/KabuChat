@@ -1,6 +1,7 @@
-import React from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ChatMessage } from "../lib/api";
 
 interface ChatInputProps {
@@ -30,9 +31,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   cancelReply,
   inputRef,
 }) => {
+  const insets = useSafeAreaInsets();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+
+  const bottomPadding = keyboardOpen ? 0 : insets.bottom;
+
   return (
-    <>
-      {/* Edit mode  */}
+    <View style={{ paddingBottom: bottomPadding }}>
+      {/* Edit mode */}
       {editingMessage ? (
         <View
           className="flex-row items-center px-4 py-2 border-t border-border dark:border-border-dark"
@@ -55,7 +71,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </View>
       ) : null}
 
-      {/* Reply mode  */}
+      {/* Reply mode */}
       {replyingToMessage ? (
         <View
           className="flex-row items-center px-4 py-2 border-t border-border dark:border-border-dark"
@@ -97,8 +113,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <Pressable
           onPress={onSend}
           disabled={sending || !input.trim()}
-          className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${sending || !input.trim() ? "bg-surface dark:bg-surface-dark" : "bg-primary active:opacity-80"
-            }`}
+          className={`ml-2 w-11 h-11 mb-1 rounded-full items-center justify-center ${
+            sending || !input.trim() ? "bg-surface dark:bg-surface-dark" : "bg-primary active:opacity-80"
+          }`}
         >
           {sending ? (
             <ActivityIndicator color={sending || !input.trim() ? "#94A3B8" : "#F8FAFC"} size="small" />
@@ -109,6 +126,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </Pressable>
       </View>
-    </>
+    </View>
   );
 };

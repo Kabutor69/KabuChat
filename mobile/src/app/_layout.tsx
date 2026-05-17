@@ -4,10 +4,14 @@ import { configureSocketAuth } from "@/lib/socket";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import * as Sentry from "@sentry/react-native";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import NetInfo from "@react-native-community/netinfo";
 import "../../global.css";
 
 
@@ -41,10 +45,63 @@ export default function RootLayout() {
     >
       <ThemeProvider>
         <ApiAuthBridge />
-        <AppShell />
+        <AuthHandler />
       </ThemeProvider>
     </ClerkProvider>
   );
+}
+
+function AuthHandler() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setIsReady(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      console.log("Clerk isLoaded timeout, forcing ready");
+      setIsReady(true);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (!isReady || isConnected === null) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    // Check local cache if clerk is offline
+    const wasSignedIn = cacheGet<boolean>('wasSignedIn');
+
+    // Signed in if Clerk confirms it, or if we were logged in before and are now offline.
+    const isActuallySignedIn = !!isSignedIn || (!!wasSignedIn && (!isLoaded || isConnected === false));
+
+    if (!isActuallySignedIn && !inAuthGroup) {
+      router.replace('/(auth)');
+    } else if (isActuallySignedIn && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [isReady, isSignedIn, isLoaded, isConnected, segments, router]);
+
+  if (!isReady || isConnected === null) {
+    return <FullScreenLoader message="Starting up..." />;
+  }
+
+  return <AppShell />;
 }
 
 function AppShell() {
@@ -53,6 +110,7 @@ function AppShell() {
   return (
     <GestureHandlerRootView className="flex-1">
       <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} />
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
@@ -73,6 +131,15 @@ function ApiAuthBridge() {
     console.log("ApiAuthBridge: isSignedIn =", isSignedIn);
     configureApiAuth(() => getToken());
     configureSocketAuth(() => getToken());
+    
+    if (isSignedIn !== undefined) {
+      NetInfo.fetch().then(state => {
+        // Only overwrite the cache if we are online OR if the user successfully signs in
+        if (state.isConnected || isSignedIn === true) {
+          cacheSet('wasSignedIn', isSignedIn);
+        }
+      });
+    }
   }, [getToken, isSignedIn]);
 
   // Push notifications disabled in Expo Go (SDK 53+)

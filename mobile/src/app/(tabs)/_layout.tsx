@@ -3,9 +3,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Redirect } from "expo-router";
 
 const TabsLayout = () => {
-  const { isSignedIn, isLoaded } = useAuth();
-
-  if (!isLoaded) return null;
+  const { isSignedIn } = useAuth();
 
   if (!isSignedIn) {
     return <Redirect href={"/(auth)"} />;

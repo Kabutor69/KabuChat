@@ -6,10 +6,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getConversations, type ChatMessage, type Conversation } from "../lib/api";
 import { getSocket } from "../lib/socket";
+import { outboxAdd } from "../lib/cache";
 
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
@@ -24,6 +25,7 @@ const UserChatScreen: React.FC = () => {
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [input, setInput] = useState("");
@@ -35,7 +37,25 @@ const UserChatScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<any>(null);
 
-  const { messages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, user?.id);
+  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === "ios") return;
+
+    const showListener = Keyboard.addListener("keyboardDidShow", (e) => {
+      setAndroidKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideListener = Keyboard.addListener("keyboardDidHide", () => {
+      setAndroidKeyboardHeight(0);
+    });
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
+
+  const { messages, setMessages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, user?.id);
 
   const {
     handleLongPress,
@@ -104,6 +124,13 @@ const UserChatScreen: React.FC = () => {
     try {
       setSending(true);
       const socket = getSocket();
+
+      const replyToObj = replyingToMessage ? {
+        id: replyingToMessage.id,
+        content: replyingToMessage.content,
+        sender: { clerkId: replyingToMessage.sender.clerkId }
+      } : null;
+
       if (socket && socketConnected) {
         if (editingMessage) {
           socket.emit("editMessage", { messageId: editingMessage.id, content });
@@ -117,10 +144,27 @@ const UserChatScreen: React.FC = () => {
           setReplyingToMessage(null);
         }
         socket.emit("typingStop", conversationId);
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
       } else {
-        throw new Error("Socket not connected");
+        if (editingMessage) {
+          // Editing while offline not supported 
+          setEditingMessage(null);
+        } else {
+          const optimisticId = `outbox_${Date.now()}`;
+          outboxAdd(optimisticId, conversationId, content, replyingToMessage?.id);
+
+          if (user) {
+            setMessages(prev => [...prev, {
+              id: optimisticId,
+              content,
+              createdAt: new Date().toISOString(),
+              sender: { id: user.id, clerkId: user.id, username: user.username },
+              replyTo: replyToObj as any
+            }]);
+          }
+          setReplyingToMessage(null);
+        }
       }
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     } catch (error) {
       console.error("Failed to send message", error);
       setInput(content);
@@ -197,7 +241,12 @@ const UserChatScreen: React.FC = () => {
           </View>
         </View>
 
-        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : headerHeight + 30} className="flex-1">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
+          className="flex-1"
+          style={Platform.OS === "android" ? { paddingBottom: androidKeyboardHeight } : undefined}
+        >
           {loading && messages.length === 0 && (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator color="#6366F1" />
@@ -266,7 +315,10 @@ const UserChatScreen: React.FC = () => {
           )}
 
           {conversation && !conversation.isGroup && conversation.isFriend === false ? (
-            <View className="px-5 py-4 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark items-center justify-center">
+            <View
+              className="px-5 pt-4 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark items-center justify-center"
+              style={{ paddingBottom: Math.max(16, insets.bottom) }}
+            >
               <Text className="text-foreground-muted dark:text-foreground-muted-dark font-medium text-center leading-5 px-4 mb-2">
                 You are no longer friends and cannot reply to this conversation.
               </Text>
