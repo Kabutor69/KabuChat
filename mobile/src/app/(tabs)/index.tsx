@@ -15,13 +15,9 @@ const ChatScreen: React.FC = () => {
   const { user } = useUser();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
+  const currentUserId = user?.id ?? cacheGet<{ id?: string }>("profile_me")?.id;
 
   const fetchConversations = useCallback(async () => {
-    if (!isSignedIn) {
-      console.log("Not signed in, skipping fetch");
-      return [];
-    }
-
     try {
       setLoading(true);
       const cached = cacheGet<Conversation[]>("conversations");
@@ -48,9 +44,11 @@ const ChatScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [isSignedIn]);
+  }, []);
 
   useEffect(() => {
+    void fetchConversations();
+
     if (!isLoaded || !isSignedIn) return;
 
     let socket: any = null;
@@ -134,7 +132,7 @@ const ChatScreen: React.FC = () => {
   const renderItem = ({ item }: { item: Conversation }) => (
     <HomeCard
       conversation={item}
-      currentUserId={user?.id}
+      currentUserId={currentUserId}
       onPress={() => router.push(`/chat/${item.id}` as any)}
     />
   );

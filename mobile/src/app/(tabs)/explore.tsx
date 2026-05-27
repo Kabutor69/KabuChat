@@ -73,15 +73,13 @@ const ExploreScreen = () => {
   }, [isSignedIn]);
 
   const loadFriends = useCallback(async () => {
-    if (!isSignedIn) return;
-
     try {
       setLoading(true);
       const cached = cacheGet<UserSearchItem[]>("explore_friends");
       if (cached) setFriends(cached);
-      
+
       const netInfo = await NetInfo.fetch();
-      if (!netInfo.isConnected) return;
+      if (!netInfo.isConnected || !isSignedIn) return;
 
       const friendsList = await getFriends();
       setFriends(friendsList);

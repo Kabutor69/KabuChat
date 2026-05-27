@@ -44,13 +44,19 @@ export const useChatSocket = (conversationId: string | undefined, userId: string
   }, [conversationId]);
 
   useEffect(() => {
-    if (!conversationId || !userId) return;
+    if (!conversationId) return;
 
     let socket: any = null;
 
     const setupSocket = async () => {
       try {
         await loadMessages();
+
+        if (!userId) {
+          setSocketConnected(false);
+          return;
+        }
+
         socket = await connectSocket();
         if (socket) {
           setSocketConnected(true);

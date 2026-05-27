@@ -6,35 +6,24 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import * as Sentry from "@sentry/react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { StartupSplash } from "../components/StartupSplash";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import NetInfo from "@react-native-community/netinfo";
 import "../../global.css";
 
-
 Sentry.init({
   dsn: "https://4c4d41b9975fb19e214a3a089027782b@o4510967284236288.ingest.de.sentry.io/4510978737307728",
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
-
-  // Enable Logs
   enableLogs: true,
-
-  // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
   integrations: [
     Sentry.mobileReplayIntegration(),
     Sentry.feedbackIntegration(),
   ],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
 });
 
 export default function RootLayout() {
@@ -44,7 +33,6 @@ export default function RootLayout() {
       publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
       <ThemeProvider>
-        <ApiAuthBridge />
         <AuthHandler />
       </ThemeProvider>
     </ClerkProvider>
@@ -52,12 +40,15 @@ export default function RootLayout() {
 }
 
 function AuthHandler() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const segments = useSegments();
   const router = useRouter();
+  const hasRedirected = useRef(false);
+  const prevIsSignedIn = useRef<boolean | undefined>(undefined);
 
+  // Track network state
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
@@ -65,40 +56,119 @@ function AuthHandler() {
     return () => unsubscribe();
   }, []);
 
+  // Configure API/socket auth
   useEffect(() => {
+    configureApiAuth(() => getToken());
+    configureSocketAuth(() => getToken());
+  }, [getToken]);
+
+  // Only write true to cache when confirmed signed in
+  useEffect(() => {
+    if (isSignedIn === true) {
+      cacheSet('wasSignedIn', true);
+    }
+  }, [isSignedIn]);
+
+  // Only clear cache on explicit sign out: true → false while loaded + online
+  // Never clears on cold start: undefined → false
+  useEffect(() => {
+    if (
+      prevIsSignedIn.current === true &&
+      isSignedIn === false &&
+      isLoaded === true
+    ) {
+      NetInfo.fetch().then(state => {
+        if (state.isConnected) {
+          cacheSet('wasSignedIn', false);
+          console.log("CACHE: cleared wasSignedIn on sign out");
+        }
+      });
+    }
+
+    if (isSignedIn !== undefined) {
+      prevIsSignedIn.current = isSignedIn;
+    }
+  }, [isSignedIn, isLoaded]);
+
+  // Ready
+  useEffect(() => {
+    const wasSignedIn = cacheGet<boolean>('wasSignedIn');
+    console.log("READY CHECK:", { isLoaded, isSignedIn, wasSignedIn });
+
     if (isLoaded) {
+      console.log("READY: Clerk loaded");
       setIsReady(true);
       return;
     }
 
+    if (wasSignedIn === true) {
+      console.log("READY: wasSignedIn=true from cache, skipping Clerk wait");
+      setIsReady(true);
+      return;
+    }
+
+    console.log("READY: waiting for Clerk or 5s timeout...");
     const timer = setTimeout(() => {
-      console.log("Clerk isLoaded timeout, forcing ready");
+      console.log("READY: 5s timeout fired");
       setIsReady(true);
     }, 5000);
 
     return () => clearTimeout(timer);
   }, [isLoaded]);
 
+  // Routing 
   useEffect(() => {
-    if (!isReady || isConnected === null) return;
+    if (!isReady) return;
+    if (hasRedirected.current) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-
-    // Check local cache if clerk is offline
     const wasSignedIn = cacheGet<boolean>('wasSignedIn');
+    const isOfflineOrUnknown = isConnected === false || isConnected === null;
 
-    // Signed in if Clerk confirms it, or if we were logged in before and are now offline.
-    const isActuallySignedIn = !!isSignedIn || (!!wasSignedIn && (!isLoaded || isConnected === false));
+    // Online → trust Clerk
+    // Offline/unknown → trust SQLite cache
+    const isActuallySignedIn = !isOfflineOrUnknown
+      ? !!isSignedIn
+      : !!wasSignedIn;
+
+    console.log("ROUTING:", {
+      isSignedIn,
+      isLoaded,
+      isConnected,
+      isOfflineOrUnknown,
+      wasSignedIn,
+      isActuallySignedIn,
+      inAuthGroup,
+    });
 
     if (!isActuallySignedIn && !inAuthGroup) {
-      router.replace('/(auth)');
+      console.log("ROUTING: → (auth)");
+      hasRedirected.current = true;
+      setTimeout(() => router.replace('/(auth)'), 100);
     } else if (isActuallySignedIn && inAuthGroup) {
-      router.replace('/(tabs)');
+      console.log("ROUTING: → (tabs)");
+      hasRedirected.current = true;
+      setTimeout(() => router.replace('/(tabs)'), 100);
+    } else {
+      console.log("ROUTING: already in right place");
     }
   }, [isReady, isSignedIn, isLoaded, isConnected, segments, router]);
 
-  if (!isReady || isConnected === null) {
-    return <FullScreenLoader message="Starting up..." />;
+  // Reset redirect lock only on genuine auth state change
+  // NOT on cold start undefined → false
+  useEffect(() => {
+    if (
+      prevIsSignedIn.current !== undefined &&
+      isSignedIn !== undefined &&
+      prevIsSignedIn.current !== isSignedIn
+    ) {
+      console.log("REDIRECT LOCK RESET: isSignedIn changed from", prevIsSignedIn.current, "to", isSignedIn);
+      hasRedirected.current = false;
+    }
+  }, [isSignedIn]);
+
+  if (!isReady) {
+    return <StartupSplash message="Loading Kabuchat..." />;
   }
 
   return <AppShell />;
@@ -122,45 +192,4 @@ function AppShell() {
       </Stack>
     </GestureHandlerRootView>
   );
-}
-
-function ApiAuthBridge() {
-  const { getToken, isSignedIn } = useAuth();
-
-  useEffect(() => {
-    console.log("ApiAuthBridge: isSignedIn =", isSignedIn);
-    configureApiAuth(() => getToken());
-    configureSocketAuth(() => getToken());
-    
-    if (isSignedIn !== undefined) {
-      NetInfo.fetch().then(state => {
-        // Only overwrite the cache if we are online OR if the user successfully signs in
-        if (state.isConnected || isSignedIn === true) {
-          cacheSet('wasSignedIn', isSignedIn);
-        }
-      });
-    }
-  }, [getToken, isSignedIn]);
-
-  // Push notifications disabled in Expo Go (SDK 53+)
-  // To enable, build a development build with:
-  // npx expo install expo-dev-client && eas build --profile development
-  // useEffect(() => {
-  //   if (!isSignedIn) return;
-  //   const setupPushNotifications = async () => {
-  //     try {
-  //       const { registerForPushNotifications } = await import("@/lib/notifications");
-  //       const token = await registerForPushNotifications();
-  //       if (token) {
-  //         await registerPushToken(token);
-  //         console.log("Push token registered:", token);
-  //       }
-  //     } catch (error) {
-  //       console.log("Push notifications not available:", error);
-  //     }
-  //   };
-  //   setupPushNotifications();
-  // }, [isSignedIn]);
-
-  return null;
 }

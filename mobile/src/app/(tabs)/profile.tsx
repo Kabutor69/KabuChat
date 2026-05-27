@@ -30,6 +30,16 @@ const STATS = [
   { label: "Friends", value: "67", icon: "people" },
   // { label: "Groups", value: "9", icon: "people-circle" },
 ];
+type ProfileSnapshot = {
+  id?: string;
+  fullName?: string | null;
+  username?: string | null;
+  imageUrl?: string | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  _updatedAt?: number;
+};
 
 const ProfileScreen = () => {
   const { signOut } = useAuth();
@@ -38,13 +48,15 @@ const ProfileScreen = () => {
   const [dbUsername, setDbUsername] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [profileSnapshot, setProfileSnapshot] = useState<ProfileSnapshot | null>(null);
   const { preference, setPreference, resolvedTheme } = useThemePreference();
 
   useEffect(() => {
     NetInfo.fetch().then(state => setIsOffline(!state.isConnected));
     
-    const cached = cacheGet<any>("profile_me");
+    const cached = cacheGet<ProfileSnapshot>("profile_me");
     if (cached) {
+      setProfileSnapshot(cached);
       if (cached.username) setDbUsername(cached.username);
       if (cached._updatedAt) setLastUpdated(cached._updatedAt);
     }
@@ -52,9 +64,19 @@ const ProfileScreen = () => {
     getMe().then((data: any) => {
       if (data?.username) {
         setDbUsername(data.username);
-        const updatedData = { ...data, _updatedAt: Date.now() };
+        const updatedAt = Date.now();
+        const updatedData: ProfileSnapshot = {
+          ...data,
+          fullName: user?.fullName ?? null,
+          firstName: user?.firstName ?? null,
+          lastName: user?.lastName ?? null,
+          imageUrl: user?.imageUrl ?? null,
+          email: user?.primaryEmailAddress?.emailAddress ?? null,
+          _updatedAt: updatedAt,
+        };
         cacheSet("profile_me", updatedData);
-        setLastUpdated(updatedData._updatedAt);
+        setProfileSnapshot(updatedData);
+        setLastUpdated(updatedAt);
       }
       setIsOffline(false);
     }).catch(() => {
@@ -90,7 +112,7 @@ const ProfileScreen = () => {
             <View className="relative">
               <View className="p-1.5 bg-surface-elevated dark:bg-surface-elevated-dark rounded-3xl shadow-xl shadow-primary/20 border border-border dark:border-border-dark">
                 <Image
-                  source={user?.imageUrl}
+                  source={profileSnapshot?.imageUrl || user?.imageUrl}
                   style={{ width: 110, height: 110, borderRadius: 32 }}
                   contentFit="cover"
                 />
@@ -100,7 +122,7 @@ const ProfileScreen = () => {
 
             <View className="items-center mt-4">
               <Text className="text-2xl font-black text-foreground dark:text-foreground-dark tracking-tight">
-                {user?.fullName || user?.username || "User"}
+                {profileSnapshot?.fullName || user?.fullName || profileSnapshot?.username || user?.username || "User"}
               </Text>
               {dbUsername ? (
                 <Text className="text-sm font-bold text-primary mt-0.5">@{dbUsername}</Text>
@@ -108,7 +130,7 @@ const ProfileScreen = () => {
               <View className="mt-1 bg-primary/10 px-4 py-1.5 rounded-full flex-row items-center">
                 <Ionicons name="mail" size={12} color={COLORS.primary} />
                 <Text className="ml-2 text-[11px] font-bold text-primary">
-                  {user?.primaryEmailAddress?.emailAddress}
+                  {profileSnapshot?.email || user?.primaryEmailAddress?.emailAddress}
                 </Text>
               </View>
               {isOffline && (

@@ -1,11 +1,13 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useAuth } from "@clerk/clerk-expo";
 import { Redirect } from "expo-router";
+import { cacheGet } from "@/lib/cache";
 
 const TabsLayout = () => {
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
+  const wasSignedIn = cacheGet<boolean>("wasSignedIn");
 
-  if (!isSignedIn) {
+  if (isLoaded && !isSignedIn && wasSignedIn !== true) {
     return <Redirect href={"/(auth)"} />;
   }
 

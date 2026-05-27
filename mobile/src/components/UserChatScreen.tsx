@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { getConversations, type ChatMessage, type Conversation } from "../lib/api";
 import { getSocket } from "../lib/socket";
-import { outboxAdd } from "../lib/cache";
+import { cacheGet, outboxAdd } from "../lib/cache";
 
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
@@ -26,6 +26,7 @@ const UserChatScreen: React.FC = () => {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
+  const currentUserId = user?.id ?? cacheGet<{ id?: string }>("profile_me")?.id;
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [input, setInput] = useState("");
@@ -55,7 +56,7 @@ const UserChatScreen: React.FC = () => {
     };
   }, []);
 
-  const { messages, setMessages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, user?.id);
+  const { messages, setMessages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, currentUserId);
 
   const {
     handleLongPress,
@@ -65,7 +66,7 @@ const UserChatScreen: React.FC = () => {
     closeMenu,
     handleAction,
   } = useMessageActions(
-    user?.id,
+    currentUserId,
     socketConnected,
     setEditingMessage,
     setReplyingToMessage,
@@ -79,15 +80,18 @@ const UserChatScreen: React.FC = () => {
     const fetchConv = async () => {
       try {
         const convs = await getConversations();
-        const current = convs.find((c) => c.id === conversationId);
+        const cachedConvs = cacheGet<Conversation[]>("conversations") ?? [];
+        const current = convs.find((c) => c.id === conversationId) ?? cachedConvs.find((c) => c.id === conversationId);
         if (current) setConversation(current);
       } catch (e) {
         console.error("Failed to load conversation details", e);
+        const cachedConvs = cacheGet<Conversation[]>("conversations") ?? [];
+        const current = cachedConvs.find((c) => c.id === conversationId);
+        if (current) setConversation(current);
       }
     };
     void fetchConv();
   }, [conversationId]);
-
   useEffect(() => {
     if (!conversationId) return;
     void markRead();
@@ -214,7 +218,7 @@ const UserChatScreen: React.FC = () => {
     return messagesReversed.find((m) => m.sender.clerkId === user?.id && (m.readByClerkIds?.length ?? 0) > 0)?.id;
   }, [messagesReversed, user?.id]);
 
-  const peer = conversation?.members.find((m) => m.clerkId !== user?.id);
+  const peer = conversation?.members.find((m) => m.clerkId !== currentUserId);
   const headerName = conversation?.isGroup ? conversation.name : peer?.name || "Chat";
   const headerAvatar = conversation?.isGroup ? null : peer?.avatar;
 
