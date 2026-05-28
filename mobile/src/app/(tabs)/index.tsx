@@ -25,7 +25,29 @@ const ChatScreen: React.FC = () => {
         setConversations(cached);
       }
       const data = await getConversations();
-      const sorted = data.sort((a,b) => {
+      
+      // Add cached member data
+      const cachedMembers = cacheGet<Record<string, any>>("members") || {};
+      const enrichedData = data.map(conv => ({
+        ...conv,
+        members: conv.members.map(member => ({
+          ...member,
+          // Use cached profile if available
+          avatar: member.avatar || cachedMembers[member.clerkId]?.avatar,
+          name: member.name || cachedMembers[member.clerkId]?.name || member.clerkId,
+        })),
+      }));
+      
+      // Update members cache for offline use
+      const memberMap: Record<string, any> = { ...cachedMembers };
+      enrichedData.forEach(conv => {
+        conv.members.forEach(member => {
+          memberMap[member.clerkId] = member;
+        });
+      });
+      cacheSet("members", memberMap);
+      
+      const sorted = enrichedData.sort((a,b) => {
           const tA = a.activeAt ? new Date(a.activeAt).getTime() : (a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0);
           const tB = b.activeAt ? new Date(b.activeAt).getTime() : (b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0);
           return tB - tA;
@@ -37,8 +59,18 @@ const ChatScreen: React.FC = () => {
       console.error("Failed to fetch conversations:", error);
       const cached = cacheGet<Conversation[]>("conversations");
       if (cached) {
-        setConversations(cached);
-        return cached;
+        // Add cached member info
+        const cachedMembers = cacheGet<Record<string, any>>("members") || {};
+        const enriched = cached.map(conv => ({
+          ...conv,
+          members: conv.members.map(member => ({
+            ...member,
+            avatar: member.avatar || cachedMembers[member.clerkId]?.avatar,
+            name: member.name || cachedMembers[member.clerkId]?.name || member.clerkId,
+          })),
+        }));
+        setConversations(enriched);
+        return enriched;
       }
       return [];
     } finally {

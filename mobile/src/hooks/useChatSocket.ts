@@ -17,22 +17,72 @@ export const useChatSocket = (conversationId: string | undefined, userId: string
     try {
       setLoading(true);
       const cached = cacheGet<ChatMessage[]>(`messages_${conversationId}`);
-      if (cached) {
-        setMessages(cached);
+      
+      // Merge outbox messages with cached messages for offline view
+      let messagesToShow = cached || [];
+      const outboxMessages = outboxGet();
+      const relevantOutbox = outboxMessages.filter(m => m.conversationId === conversationId);
+      
+      if (relevantOutbox.length > 0 && userId) {
+        const cachedIds = new Set(messagesToShow.map(m => m.id));
+        const outboxAsMessages = relevantOutbox.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          createdAt: new Date(msg.createdAt).toISOString(),
+          sender: { 
+            id: userId, 
+            clerkId: userId, 
+            username: cacheGet<any>("profile_me")?.username || "You" 
+          },
+          readByClerkIds: [],
+        } as ChatMessage));
+        
+        // Filter out duplicates and combine
+        messagesToShow = [
+          ...messagesToShow.filter(m => !m.id.startsWith("outbox_")),
+          ...outboxAsMessages.filter(m => !cachedIds.has(m.id))
+        ];
       }
+      
+      if (messagesToShow.length > 0) {
+        setMessages(messagesToShow);
+      }
+      
       const data = await getMessages(conversationId);
       setMessages(data);
       cacheSet(`messages_${conversationId}`, data);
     } catch (error) {
       console.error("Failed to load messages", error);
       const cached = cacheGet<ChatMessage[]>(`messages_${conversationId}`);
-      if (cached) {
-        setMessages(cached);
+      const outboxMessages = outboxGet();
+      const relevantOutbox = outboxMessages.filter(m => m.conversationId === conversationId);
+      
+      let messagesToShow = cached || [];
+      if (relevantOutbox.length > 0 && userId) {
+        const cachedIds = new Set(messagesToShow.map(m => m.id));
+        const outboxAsMessages = relevantOutbox.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          createdAt: new Date(msg.createdAt).toISOString(),
+          sender: { 
+            id: userId, 
+            clerkId: userId, 
+            username: cacheGet<any>("profile_me")?.username || "You" 
+          },
+          readByClerkIds: [],
+        } as ChatMessage));
+        messagesToShow = [
+          ...messagesToShow.filter(m => !m.id.startsWith("outbox_")),
+          ...outboxAsMessages.filter(m => !cachedIds.has(m.id))
+        ];
+      }
+      if (messagesToShow.length > 0) {
+        setMessages(messagesToShow);
       }
     } finally {
       setLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, userId]);
 
   const markRead = useCallback(async () => {
     if (!conversationId) return;

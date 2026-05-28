@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getClerkUserProfile } from "../lib/clerk.js";
 import { prisma } from "../lib/prisma.js";
+import { notifyFriendRequest } from "../lib/push-notification.js";
 
 export async function sendFriendRequest(req: Request, res: Response) {
   const senderClerkId = req.userId;
@@ -74,7 +75,35 @@ export async function sendFriendRequest(req: Request, res: Response) {
         senderId: sender.id,
         receiverId: receiver.id,
       },
+      include: {
+        sender: true,
+        receiver: true,
+      },
     });
+
+    // Send push notification
+    void notifyFriendRequest(
+      receiver.id,
+      sender.username || "Someone",
+      request.id,
+    );
+
+    // Notify receiver via socket
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user:${receiver.id}`).emit("friendRequestReceived", {
+        id: request.id,
+        senderId: request.senderId,
+        receiverId: request.receiverId,
+        status: request.status,
+        createdAt: request.createdAt,
+        sender: {
+          id: request.sender.id,
+          clerkId: request.sender.clerkId,
+          username: request.sender.username,
+        },
+      });
+    }
 
     res.json(request);
   } catch (error) {

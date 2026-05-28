@@ -74,7 +74,11 @@ io.use(authMiddlewareSocket); // attach Clerk auth to sockets
 import { registerChatHandlers } from "./socket.js";
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.data.userId);
+  const userId = socket.data.userId as string;
+  console.log("User connected:", userId);
+
+  // Join a user-specific room for personal notifications (friend requests, etc.)
+  socket.join(`user:${userId}`);
 
   // Register chat event handlers
   registerChatHandlers(io, socket);

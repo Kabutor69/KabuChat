@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { messageInclude, toSocketPayload } from "../lib/message.helpers.js";
+import { notifyNewMessage } from "../lib/push-notification.js";
 
 export async function sendMessage(req: Request, res: Response): Promise<void> {
   try {
@@ -76,6 +77,24 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
         ...payload,
         conversationId,
       });
+    }
+
+    // Send push notifications to other users in the conversation
+    const otherMembers = await prisma.conversationMember.findMany({
+      where: {
+        conversationId,
+        userId: { not: user.id },
+      },
+      include: { user: true },
+    });
+
+    for (const member of otherMembers) {
+      void notifyNewMessage(
+        member.userId,
+        user.username || "Someone",
+        message.content,
+        conversationId,
+      );
     }
 
     res.json(payload);

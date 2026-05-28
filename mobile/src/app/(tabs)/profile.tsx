@@ -8,6 +8,7 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sentry from "@sentry/react-native";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -44,6 +45,7 @@ type ProfileSnapshot = {
 const ProfileScreen = () => {
   const { signOut } = useAuth();
   const { user } = useUser();
+  const router = useRouter();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dbUsername, setDbUsername] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -52,7 +54,18 @@ const ProfileScreen = () => {
   const { preference, setPreference, resolvedTheme } = useThemePreference();
 
   useEffect(() => {
-    NetInfo.fetch().then(state => setIsOffline(!state.isConnected));
+    NetInfo.fetch().then(state => {
+      const offline = !state.isConnected;
+      setIsOffline(offline);
+      
+      // Use cached profile when offline
+      if (offline && !profileSnapshot) {
+        const cachedClerk = cacheGet<any>("clerk_user");
+        if (cachedClerk) {
+          setProfileSnapshot(cachedClerk);
+        }
+      }
+    });
     
     const cached = cacheGet<ProfileSnapshot>("profile_me");
     if (cached) {
@@ -82,7 +95,20 @@ const ProfileScreen = () => {
     }).catch(() => {
       setIsOffline(true);
     });
-  }, [editModalVisible]); // re-fetch after edit modal closes
+    
+    // Also cache Clerk user info for offline 
+    if (user) {
+      cacheSet("clerk_user", {
+        id: user.id,
+        fullName: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+        email: user.primaryEmailAddress?.emailAddress,
+        username: user.username,
+      });
+    }
+  }, [user, editModalVisible]); // re-fetch after user changes
 
   const handleMenuItemPress = (label: string) => {
     Alert.alert(label, `${label} feature coming soon!`);
@@ -221,6 +247,7 @@ const ProfileScreen = () => {
                     onPress: async () => {
                       try {
                         await signOut();
+                        router.replace("/(auth)");
                         Sentry.logger.info("User signed out successfully", { userId: user?.id });
                       } catch (error) {
                         Sentry.captureException(error);

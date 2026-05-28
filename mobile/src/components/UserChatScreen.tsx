@@ -38,23 +38,8 @@ const UserChatScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<any>(null);
 
-  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    if (Platform.OS === "ios") return;
-
-    const showListener = Keyboard.addListener("keyboardDidShow", (e) => {
-      setAndroidKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideListener = Keyboard.addListener("keyboardDidHide", () => {
-      setAndroidKeyboardHeight(0);
-    });
-
-    return () => {
-      showListener.remove();
-      hideListener.remove();
-    };
-  }, []);
+  // Use user?.id if available (online), otherwise use cache (offline)
+  const clerkIdForComparison = user?.id || currentUserId;
 
   const { messages, setMessages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, currentUserId);
 
@@ -157,11 +142,17 @@ const UserChatScreen: React.FC = () => {
           outboxAdd(optimisticId, conversationId, content, replyingToMessage?.id);
 
           if (user) {
+            const dbUser = cacheGet<{ id?: string; username?: string }>("profile_me") || { id: user.id, username: user.username };
             setMessages(prev => [...prev, {
               id: optimisticId,
               content,
               createdAt: new Date().toISOString(),
-              sender: { id: user.id, clerkId: user.id, username: user.username },
+              sender: { 
+                id: user.id, 
+                clerkId: user.id, 
+                username: dbUser.username || user.username 
+              },
+              readByClerkIds: [],
               replyTo: replyToObj as any
             }]);
           }
@@ -215,8 +206,8 @@ const UserChatScreen: React.FC = () => {
   };
 
   const lastReadMessageId = useMemo(() => {
-    return messagesReversed.find((m) => m.sender.clerkId === user?.id && (m.readByClerkIds?.length ?? 0) > 0)?.id;
-  }, [messagesReversed, user?.id]);
+    return messagesReversed.find((m) => m.sender.clerkId === clerkIdForComparison && (m.readByClerkIds?.length ?? 0) > 0)?.id;
+  }, [messagesReversed, clerkIdForComparison]);
 
   const peer = conversation?.members.find((m) => m.clerkId !== currentUserId);
   const headerName = conversation?.isGroup ? conversation.name : peer?.name || "Chat";
@@ -246,10 +237,9 @@ const UserChatScreen: React.FC = () => {
         </View>
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior="padding"
           keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
           className="flex-1"
-          style={Platform.OS === "android" ? { paddingBottom: androidKeyboardHeight } : undefined}
         >
           {loading && messages.length === 0 && (
             <View className="flex-1 items-center justify-center">
@@ -262,6 +252,7 @@ const UserChatScreen: React.FC = () => {
             data={messagesReversed}
             inverted={true}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, paddingTop: 8 }}
             onScrollToIndexFailed={(info) => {
               flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
@@ -298,7 +289,7 @@ const UserChatScreen: React.FC = () => {
                   )}
                   <MessageBubble
                     item={item}
-                    isMe={item.sender.clerkId === user?.id}
+                    isMe={item.sender.clerkId === clerkIdForComparison}
                     isDark={isDark}
                     isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
                     onLongPress={handleLongPress}
@@ -353,7 +344,7 @@ const UserChatScreen: React.FC = () => {
         onClose={closeMenu}
         onAction={handleAction}
         position={menuPosition}
-        isMe={selectedMessage?.sender.clerkId === user?.id}
+        isMe={selectedMessage?.sender.clerkId === clerkIdForComparison}
         isDark={isDark}
         message={selectedMessage}
       />

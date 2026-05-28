@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StartupSplash } from "../components/StartupSplash";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { useNotifications } from "@/hooks/useNotifications";
 import NetInfo from "@react-native-community/netinfo";
 import "../../global.css";
 
@@ -176,6 +177,7 @@ function AuthHandler() {
 
 function AppShell() {
   const { resolvedTheme } = useThemePreference();
+  useNotifications();
 
   return (
     <GestureHandlerRootView className="flex-1">

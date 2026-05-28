@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
+import { cacheGet } from "@/lib/cache";
 
 interface HomeCardProps {
     conversation: Conversation;
@@ -16,9 +17,15 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     currentUserId,
     onPress,
 }) => {
-    const otherUser =
-        conversation.members.find((member) => member.clerkId !== currentUserId) ||
-        conversation.members[0];
+    // Find the other user in conversation
+    const otherUser = conversation.members.find((member) => member.clerkId !== currentUserId) 
+        || conversation.members[0];
+
+    // Get sender of last message with fallback
+    const lastMessageSender = conversation.lastMessage?.sender;
+    const senderInfo = lastMessageSender 
+        ? conversation.members.find(m => m.clerkId === lastMessageSender.clerkId)
+        : null;
 
     const isUnread =
         conversation.lastMessage?.sender?.clerkId &&
@@ -28,12 +35,21 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     const isMe = conversation.lastMessage?.sender?.clerkId === currentUserId;
     const senderName = isMe
         ? "You"
-        : conversation.members.find(m => m.clerkId === conversation.lastMessage?.sender?.clerkId)?.name?.split(" ")[0] || "Someone";
+        : senderInfo?.name?.split(" ")[0] || lastMessageSender?.clerkId?.split("_")[0] || "Someone";
 
-    // We only explicitly prepend the sender name in group chats
-    // Or in DMs if it's "You:"
+    // Show prefix in group chats or for "You:" in DMs
     const showPrefix = conversation.lastMessage && (conversation.isGroup || isMe);
     const prefix = showPrefix ? `${senderName}: ` : "";
+
+    // Format time safely
+    const formatTime = (dateStr: string | undefined) => {
+        if (!dateStr) return "";
+        try {
+            return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch {
+            return "";
+        }
+    };
 
     return (
         <Pressable
@@ -67,10 +83,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                     </Text>
                     {conversation.lastMessage?.createdAt && (
                         <Text className={`text-[10px] font-bold ${isUnread ? 'text-primary' : 'text-foreground-subtle dark:text-foreground-subtle-dark'}`}>
-                            {new Date(conversation.lastMessage.createdAt).toLocaleTimeString(
-                                [],
-                                { hour: "2-digit", minute: "2-digit" }
-                            )}
+                            {formatTime(conversation.lastMessage.createdAt)}
                         </Text>
                     )}
                 </View>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import React from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ChatMessage } from "../lib/api";
@@ -32,22 +32,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   inputRef,
 }) => {
   const insets = useSafeAreaInsets();
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
-    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-
-  const bottomPadding = keyboardOpen ? 0 : insets.bottom;
 
   return (
-    <View style={{ paddingBottom: bottomPadding }}>
+    <View style={{ paddingBottom: insets.bottom }}>
       {/* Edit mode */}
       {editingMessage ? (
         <View
