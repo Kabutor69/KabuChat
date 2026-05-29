@@ -1,7 +1,7 @@
 import { ThemeProvider, useThemePreference } from "@/contexts/theme.context";
 import { configureApiAuth } from "@/lib/api";
 import { configureSocketAuth } from "@/lib/socket";
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import * as Sentry from "@sentry/react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -42,6 +42,7 @@ export default function RootLayout() {
 
 function AuthHandler() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
   const [isReady, setIsReady] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const segments = useSegments();
@@ -62,6 +63,22 @@ function AuthHandler() {
     configureApiAuth(() => getToken());
     configureSocketAuth(() => getToken());
   }, [getToken]);
+
+  // Cache Clerk ID as soon as user is loaded
+  useEffect(() => {
+    if (user?.id) {
+      cacheSet('clerk_user', {
+        id: user.id,
+        clerkId: user.id,
+        fullName: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+        email: user.primaryEmailAddress?.emailAddress,
+        username: user.username,
+      });
+    }
+  }, [user]);
 
   // Only write true to cache when confirmed signed in
   useEffect(() => {

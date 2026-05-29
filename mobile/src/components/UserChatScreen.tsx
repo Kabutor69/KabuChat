@@ -26,7 +26,13 @@ const UserChatScreen: React.FC = () => {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const currentUserId = user?.id ?? cacheGet<{ id?: string }>("profile_me")?.id;
+  
+  const cachedProfile = cacheGet<{ id?: string; clerkId?: string }>("profile_me");
+  const cachedClerkUser = cacheGet<{ clerkId?: string }>("clerk_user");
+  
+  // Fallback priority: online user > cached clerk user > cached profile
+  const myClerkId = user?.id ?? cachedClerkUser?.clerkId ?? cachedProfile?.clerkId;
+  const currentUserId = myClerkId;
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [input, setInput] = useState("");
@@ -37,9 +43,6 @@ const UserChatScreen: React.FC = () => {
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<any>(null);
-
-  // Use user?.id if available (online), otherwise use cache (offline)
-  const clerkIdForComparison = user?.id || currentUserId;
 
   const { messages, setMessages, loading, socketConnected, isPeerTyping, markRead } = useChatSocket(conversationId, currentUserId);
 
@@ -206,8 +209,8 @@ const UserChatScreen: React.FC = () => {
   };
 
   const lastReadMessageId = useMemo(() => {
-    return messagesReversed.find((m) => m.sender.clerkId === clerkIdForComparison && (m.readByClerkIds?.length ?? 0) > 0)?.id;
-  }, [messagesReversed, clerkIdForComparison]);
+    return messagesReversed.find((m) => m.sender.clerkId === myClerkId && (m.readByClerkIds?.length ?? 0) > 0)?.id;
+  }, [messagesReversed, myClerkId]);
 
   const peer = conversation?.members.find((m) => m.clerkId !== currentUserId);
   const headerName = conversation?.isGroup ? conversation.name : peer?.name || "Chat";
@@ -289,9 +292,9 @@ const UserChatScreen: React.FC = () => {
                   )}
                   <MessageBubble
                     item={item}
-                    isMe={item.sender.clerkId === clerkIdForComparison}
+                    isMe={item.sender.clerkId === myClerkId}
                     isDark={isDark}
-                    isLastRead={item.sender.clerkId === user?.id && item.id === lastReadMessageId}
+                    isLastRead={item.sender.clerkId === myClerkId && item.id === lastReadMessageId}
                     onLongPress={handleLongPress}
                     onReplyPress={handleReplyPress}
                     isHighlighted={highlightedMessageId === item.id}
@@ -344,7 +347,7 @@ const UserChatScreen: React.FC = () => {
         onClose={closeMenu}
         onAction={handleAction}
         position={menuPosition}
-        isMe={selectedMessage?.sender.clerkId === clerkIdForComparison}
+        isMe={selectedMessage?.sender.clerkId === myClerkId}
         isDark={isDark}
         message={selectedMessage}
       />

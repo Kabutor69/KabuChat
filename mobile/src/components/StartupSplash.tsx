@@ -16,7 +16,7 @@ export function StartupSplash({ message = "Setting things up" }: StartupSplashPr
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(scaleAnim, {
-          toValue: 1.06,
+          toValue: 1.16,
           duration: 800,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
@@ -40,7 +40,7 @@ export function StartupSplash({ message = "Setting things up" }: StartupSplashPr
         <Animated.Image
           source={require("../../assets/images/icon.png")}
           resizeMode="contain"
-          className="h-32 w-32 rounded-md border"
+          className="h-32 w-32 rounded-xl border-[16px] border-border-dark dark:border-border shadow-lg shadow-primary/20"
           style={{ transform: [{ scale: scaleAnim }] }}
         />
 

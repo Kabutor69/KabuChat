@@ -1,4 +1,5 @@
 import EditProfile from "@/components/EditProfile";
+import { FriendsSection } from "@/components/FriendsSection";
 import { useThemePreference, type ThemePreference } from "@/contexts/theme.context";
 import { getMe } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
@@ -19,20 +20,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const MENU_ITEMS = [
-  { icon: "notifications", label: "Notifications", color: COLORS.primary, badge: 3 },
-  // { icon: "chatbubbles", label: "My Chats", color: COLORS.accent },
-  // { icon: "people", label: "Friends", color: COLORS.accentSecondary },
-  { icon: "settings", label: "Settings", color: COLORS.textMuted },
-];
-
-const STATS = [
-  { label: "Messages", value: "69", icon: "chatbubble-ellipses" },
-  { label: "Friends", value: "67", icon: "people" },
-  // { label: "Groups", value: "9", icon: "people-circle" },
-];
 type ProfileSnapshot = {
   id?: string;
+  clerkId?: string;
   fullName?: string | null;
   username?: string | null;
   imageUrl?: string | null;
@@ -47,6 +37,8 @@ const ProfileScreen = () => {
   const { user } = useUser();
   const router = useRouter();
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [friendsSectionVisible, setFriendsSectionVisible] = useState(false);
+  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [dbUsername, setDbUsername] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -79,12 +71,14 @@ const ProfileScreen = () => {
         setDbUsername(data.username);
         const updatedAt = Date.now();
         const updatedData: ProfileSnapshot = {
-          ...data,
+          id: data?.id || user?.id,
+          clerkId: user?.id,
           fullName: user?.fullName ?? null,
           firstName: user?.firstName ?? null,
           lastName: user?.lastName ?? null,
           imageUrl: user?.imageUrl ?? null,
           email: user?.primaryEmailAddress?.emailAddress ?? null,
+          username: data?.username,
           _updatedAt: updatedAt,
         };
         cacheSet("profile_me", updatedData);
@@ -100,6 +94,7 @@ const ProfileScreen = () => {
     if (user) {
       cacheSet("clerk_user", {
         id: user.id,
+        clerkId: user.id,
         fullName: user.fullName,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -109,10 +104,6 @@ const ProfileScreen = () => {
       });
     }
   }, [user, editModalVisible]); // re-fetch after user changes
-
-  const handleMenuItemPress = (label: string) => {
-    Alert.alert(label, `${label} feature coming soon!`);
-  };
 
   return (
     <View className="flex-1 bg-background dark:bg-background-dark">
@@ -165,72 +156,115 @@ const ProfileScreen = () => {
                 </Text>
               )}
             </View>
-
-            {/* STATS SECTION */}
-            <View className="flex-row w-full px-6 mt-8 justify-between">
-              {STATS.map((stat, index) => (
-                <View key={index} className="flex-1 mx-1.5 bg-surface-elevated dark:bg-surface-elevated-dark border border-border dark:border-border-dark rounded-2xl p-4 items-center shadow-sm">
-                  <View className="w-10 h-10 rounded-2xl bg-surface dark:bg-surface-dark items-center justify-center mb-2">
-                    <Ionicons name={stat.icon as any} size={20} color={COLORS.primary} />
-                  </View>
-                  <Text className="text-xl font-black text-foreground dark:text-foreground-dark">{stat.value}</Text>
-                  <Text className="text-[9px] uppercase font-black text-foreground-subtle dark:text-foreground-subtle-dark tracking-[1px]">{stat.label}</Text>
-                </View>
-              ))}
-            </View>
           </View>
 
           {/* MENU ITEMS */}
           <View className="px-6 mt-8">
             <Text className="text-[10px] font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-[2px] ml-2 mb-3">ACCOUNT</Text>
             <View className="bg-surface-elevated dark:bg-surface-elevated-dark rounded-2xl border border-border dark:border-border-dark overflow-hidden shadow-sm shadow-black/5">
-              {MENU_ITEMS.map((item, index) => (
-                <Pressable
-                  key={index}
-                  className="flex-row items-center px-6 py-5 active:bg-surface dark:active:bg-surface-dark border-b border-border dark:border-border-dark"
-                  onPress={() => handleMenuItemPress(item.label)}
-                >
-                  <View className="h-10 w-10 rounded-2xl items-center justify-center" style={{ backgroundColor: `${item.color}15` }}>
-                    <Ionicons name={item.icon as any} size={20} color={item.color} />
-                  </View>
-                  <Text className="flex-1 ml-4 text-[15px] font-bold text-foreground-muted dark:text-foreground-muted-dark">{item.label}</Text>
-                  {item.badge && (
-                    <View className="bg-primary h-6 w-6 rounded-lg items-center justify-center">
-                      <Text className="text-[10px] font-black text-slate-50">{item.badge}</Text>
-                    </View>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color={resolvedTheme === "dark" ? "#7A8495" : "#D1D5DB"} />
-                </Pressable>
-              ))}
+              <Pressable
+                className="flex-row items-center px-6 py-5 active:bg-surface dark:active:bg-surface-dark"
+                onPress={() => setFriendsSectionVisible(true)}
+              >
+                <View className="h-10 w-10 rounded-2xl items-center justify-center bg-primary/15">
+                  <Ionicons name="people" size={20} color={COLORS.primary} />
+                </View>
+                <Text className="flex-1 ml-4 text-[15px] font-bold text-foreground-muted dark:text-foreground-muted-dark">Friends</Text>
+                <Ionicons name="chevron-forward" size={16} color={resolvedTheme === "dark" ? "#7A8495" : "#D1D5DB"} />
+              </Pressable>
             </View>
           </View>
 
           <View className="px-6 mt-6">
             <Text className="text-[10px] font-black text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-[2px] ml-2 mb-3">THEME</Text>
             <View className="bg-surface-elevated dark:bg-surface-elevated-dark rounded-2xl border border-border dark:border-border-dark p-4 shadow-sm shadow-black/5">
-              <Text className="text-sm font-bold text-foreground-muted dark:text-foreground-muted-dark mb-3">
-                Current: {resolvedTheme === "dark" ? "Dark" : "Light"}
-              </Text>
-              <View className="flex-row gap-2">
-                {([
-                  { key: "system", label: "System" },
-                  { key: "light", label: "Light" },
-                  { key: "dark", label: "Dark" },
-                ] as Array<{ key: ThemePreference; label: string }>).map((mode) => {
-                  const active = preference === mode.key;
-                  return (
-                    <Pressable
-                      key={mode.key}
-                      onPress={() => setPreference(mode.key)}
-                      className={`flex-1 h-10 rounded-xl items-center justify-center ${active ? "bg-primary" : "bg-surface dark:bg-surface-dark"}`}
-                    >
-                      <Text className={`text-xs font-bold ${active ? "text-slate-50" : "text-foreground-muted dark:text-foreground-muted-dark"}`}>
-                        {mode.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <Pressable
+                onPress={() => setThemeDropdownOpen(!themeDropdownOpen)}
+                className="flex-row items-center justify-between"
+              >
+                <View className="flex-row items-center gap-3 flex-1">
+                  <View className="h-10 w-10 rounded-2xl items-center justify-center bg-primary/15">
+                    <Ionicons
+                      name={resolvedTheme === "dark" ? "moon" : "sunny"}
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </View>
+                  <View>
+                    <Text className="text-xs font-bold text-foreground-subtle dark:text-foreground-subtle-dark uppercase tracking-widest">
+                      Active
+                    </Text>
+                    <Text className="text-base font-black text-foreground dark:text-foreground-dark mt-0.5">
+                      {resolvedTheme === "dark" ? "Dark" : "Light"}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons
+                  name={themeDropdownOpen ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={COLORS.textMuted}
+                />
+              </Pressable>
+
+              {themeDropdownOpen && (
+                <View className="mt-4 pt-4 border-t border-border dark:border-border-dark gap-2">
+                  {(
+                    [
+                      { key: "light", label: "Light", icon: "sunny" },
+                      { key: "dark", label: "Dark", icon: "moon" },
+                    ] as Array<{ key: ThemePreference; label: string; icon: string }>
+                  ).map((mode) => {
+                    const active = preference === mode.key;
+                    return (
+                      <Pressable
+                        key={mode.key}
+                        onPress={() => {
+                          setPreference(mode.key);
+                          setThemeDropdownOpen(false);
+                        }}
+                        className={`flex-row items-center gap-3 p-3 rounded-xl ${
+                          active
+                            ? "bg-primary/10 border border-primary"
+                            : "bg-surface dark:bg-surface-dark border border-transparent"
+                        }`}
+                      >
+                        <View
+                          className={`h-8 w-8 rounded-lg items-center justify-center ${
+                            active
+                              ? "bg-primary"
+                              : "bg-surface-elevated dark:bg-surface-elevated-dark"
+                          }`}
+                        >
+                          <Ionicons
+                            name={mode.icon as any}
+                            size={16}
+                            color={
+                              active ? "#F8FAFC" : COLORS.textMuted
+                            }
+                          />
+                        </View>
+                        <Text
+                          className={`text-sm font-bold ${
+                            active
+                              ? "text-foreground dark:text-foreground-dark"
+                              : "text-foreground-muted dark:text-foreground-muted-dark"
+                          }`}
+                        >
+                          {mode.label}
+                        </Text>
+                        {active && (
+                          <Ionicons
+                            name="checkmark"
+                            size={16}
+                            color={COLORS.primary}
+                            style={{ marginLeft: "auto" }}
+                          />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </View>
 
@@ -275,6 +309,15 @@ const ProfileScreen = () => {
         onClose={() => setEditModalVisible(false)}
         currentUsername={dbUsername}
       />
+
+      {friendsSectionVisible && (
+        <View className="absolute inset-0 z-50">
+          <FriendsSection
+            visible={friendsSectionVisible}
+            onClose={() => setFriendsSectionVisible(false)}
+          />
+        </View>
+      )}
     </View>
   );
 };

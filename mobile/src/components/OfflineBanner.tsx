@@ -18,7 +18,7 @@ export const OfflineBanner = ({ isAuth = false }: { isAuth?: boolean }) => {
 
   return (
     <View 
-      className={`bg-red-500 py-1.5 px-4 z-50 items-center justify-center flex-row`} 
+      className={`bg-red-500 pt-1.5 px-4 z-50 items-center justify-center flex-row`} 
       style={{ paddingTop: Math.max(insets.top, 8) + (isAuth ? 32 : 0) }}
     >
       <Text className="text-white text-xs font-bold text-center">

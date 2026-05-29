@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { getClerkUserProfile } from "../lib/clerk.js";
 
 export async function createDMConversation(req: Request, res: Response) {
   const clerkId = req.userId;
@@ -71,17 +72,28 @@ export async function createDMConversation(req: Request, res: Response) {
     }));
 
     if (existing) {
+      const enrichedMembers = await Promise.all(
+        existing.members.map(async (member) => {
+          let avatar = member.user.avatar;
+          if (!avatar) {
+            const clerkProfile = await getClerkUserProfile(member.user.clerkId);
+            avatar = clerkProfile?.avatar || null;
+          }
+          return {
+            id: member.user.id,
+            clerkId: member.user.clerkId,
+            name: member.user.username ?? member.user.clerkId,
+            avatar,
+          };
+        })
+      );
+
       return res.json({
         id: existing.id,
         isGroup: existing.isGroup,
         isFriend,
         name: existing.name,
-        members: existing.members.map((member) => ({
-          id: member.user.id,
-          clerkId: member.user.clerkId,
-          name: member.user.username ?? member.user.clerkId,
-          avatar: member.user.avatar,
-        })),
+        members: enrichedMembers,
         lastMessage: existing.messages[0]
           ? {
               content: existing.messages[0].content,
@@ -109,17 +121,28 @@ export async function createDMConversation(req: Request, res: Response) {
       },
     });
 
+    const enrichedNewMembers = await Promise.all(
+      conversation.members.map(async (member) => {
+        let avatar = member.user.avatar;
+        if (!avatar) {
+          const clerkProfile = await getClerkUserProfile(member.user.clerkId);
+          avatar = clerkProfile?.avatar || null;
+        }
+        return {
+          id: member.user.id,
+          clerkId: member.user.clerkId,
+          name: member.user.username ?? member.user.clerkId,
+          avatar,
+        };
+      })
+    );
+
     res.json({
       id: conversation.id,
       isGroup: conversation.isGroup,
       isFriend,
       name: conversation.name,
-      members: conversation.members.map((member) => ({
-        id: member.user.id,
-        clerkId: member.user.clerkId,
-        name: member.user.username ?? member.user.clerkId,
-        avatar: member.user.avatar,
-      })),
+      members: enrichedNewMembers,
       lastMessage: null,
     });
   } catch (error) {
@@ -218,56 +241,70 @@ export async function getUserConversations(req: Request, res: Response) {
     }
 
     res.json(
-      conversations.map((conversation) => {
-        let isFriend = true;
-        let activeAt = conversation.createdAt.toISOString();
-        
-        if (!conversation.isGroup) {
-          const peer = conversation.members.find((m) => m.userId !== user.id);
-          if (peer) {
-            isFriend = friendMap.has(peer.userId);
-            const friendCreatedAt = friendMap.get(peer.userId);
-            const lastMessageAt = conversation.messages[0]?.createdAt;
-            
-            let activeDate = conversation.createdAt;
-            if (lastMessageAt && friendCreatedAt) {
-              activeDate = lastMessageAt > friendCreatedAt ? lastMessageAt : friendCreatedAt;
-            } else if (lastMessageAt) {
-              activeDate = lastMessageAt;
-            } else if (friendCreatedAt) {
-              activeDate = friendCreatedAt;
+      await Promise.all(
+        conversations.map(async (conversation) => {
+          let isFriend = true;
+          let activeAt = conversation.createdAt.toISOString();
+          
+          if (!conversation.isGroup) {
+            const peer = conversation.members.find((m) => m.userId !== user.id);
+            if (peer) {
+              isFriend = friendMap.has(peer.userId);
+              const friendCreatedAt = friendMap.get(peer.userId);
+              const lastMessageAt = conversation.messages[0]?.createdAt;
+              
+              let activeDate = conversation.createdAt;
+              if (lastMessageAt && friendCreatedAt) {
+                activeDate = lastMessageAt > friendCreatedAt ? lastMessageAt : friendCreatedAt;
+              } else if (lastMessageAt) {
+                activeDate = lastMessageAt;
+              } else if (friendCreatedAt) {
+                activeDate = friendCreatedAt;
+              }
+              activeAt = activeDate.toISOString();
             }
-            activeAt = activeDate.toISOString();
+          } else {
+             const lastMsgAt = conversation.messages[0]?.createdAt;
+             if (lastMsgAt) {
+                activeAt = lastMsgAt.toISOString();
+             }
           }
-        } else {
-           const lastMsgAt = conversation.messages[0]?.createdAt;
-           if (lastMsgAt) {
-              activeAt = lastMsgAt.toISOString();
-           }
-        }
 
-        return {
-          id: conversation.id,
-          isGroup: conversation.isGroup,
-          isFriend,
-          activeAt,
-          name: conversation.name,
-        members: conversation.members.map((member) => ({
-          id: member.user.id,
-          clerkId: member.user.clerkId,
-          name: member.user.username ?? member.user.clerkId,
-          avatar: member.user.avatar,
-        })),
-        lastMessage: conversation.messages[0]
-          ? {
-              content: conversation.messages[0].content,
-              createdAt: conversation.messages[0].createdAt,
-              sender: { clerkId: conversation.messages[0].sender.clerkId },
-              readByClerkIds: conversation.messages[0].reads.map((r: any) => r.user.clerkId),
-            }
-          : null,
-        };
-      }),
+          // Enrich members with Clerk avatars if missing
+          const enrichedMembers = await Promise.all(
+            conversation.members.map(async (member) => {
+              let avatar = member.user.avatar;
+              if (!avatar) {
+                const clerkProfile = await getClerkUserProfile(member.user.clerkId);
+                avatar = clerkProfile?.avatar || null;
+              }
+              return {
+                id: member.user.id,
+                clerkId: member.user.clerkId,
+                name: member.user.username ?? member.user.clerkId,
+                avatar,
+              };
+            })
+          );
+
+          return {
+            id: conversation.id,
+            isGroup: conversation.isGroup,
+            isFriend,
+            activeAt,
+            name: conversation.name,
+            members: enrichedMembers,
+            lastMessage: conversation.messages[0]
+              ? {
+                  content: conversation.messages[0].content,
+                  createdAt: conversation.messages[0].createdAt,
+                  sender: { clerkId: conversation.messages[0].sender.clerkId },
+                  readByClerkIds: conversation.messages[0].reads.map((r: any) => r.user.clerkId),
+                }
+              : null,
+          };
+        })
+      ),
     );
   } catch (error) {
     console.error("Error fetching conversations:", error);

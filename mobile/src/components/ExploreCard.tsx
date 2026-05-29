@@ -1,8 +1,8 @@
 import { UserSearchItem } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 interface ExploreCardProps {
@@ -29,6 +29,9 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
     isSecondaryLoading = false,
     secondaryActionVariant = "secondary",
 }) => {
+    const [showPrimaryTooltip, setShowPrimaryTooltip] = useState(false);
+    const [showSecondaryTooltip, setShowSecondaryTooltip] = useState(false);
+
     const getVariantStyles = (variant: string, loading: boolean) => {
         if (loading) return "bg-surface dark:bg-surface-dark";
         switch (variant) {
@@ -39,13 +42,29 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
         }
     };
 
-    const getTextStyles = (variant: string) => {
+    const getIconColor = (variant: string, loading: boolean) => {
+        if (loading) return "#64748B";
         switch (variant) {
-            case "danger": return "text-slate-50";
-            case "secondary": return "text-foreground-muted dark:text-foreground-muted-dark";
+            case "danger": return "#F8FAFC";
+            case "secondary": return "#64748B";
             case "primary":
-            default: return "text-slate-50";
+            default: return "#F8FAFC";
         }
+    };
+
+    const getIconName = (label: string) => {
+        switch (label) {
+            case "Message": return "chatbubbles";
+            case "Add Friend": return "person-add-alt";
+            case "Cancel Request": return "person-add-disabled";
+            case "Remove":
+            case "Remove Friend": return "person-off";
+            default: return "checkmark";
+        }
+    };
+
+    const isIconMaterial = (label: string) => {
+        return ["Add Friend", "Cancel Request", "Remove", "Remove Friend"].includes(label);
     };
 
     return (
@@ -75,30 +94,54 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({
             {/* Action Section */}
             <View className="flex-row items-center gap-2">
                 {onSecondaryAction && secondaryActionLabel && (
-                    <Pressable
-                        onPress={onSecondaryAction}
-                        disabled={isSecondaryLoading}
-                        className={`h-10 rounded-[14px] px-3 items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(secondaryActionVariant, isSecondaryLoading)}`}
-                    >
-                        {isSecondaryLoading ? (
-                            <ActivityIndicator color={secondaryActionVariant === "secondary" ? "#64748B" : "#F8FAFC"} size="small" />
-                        ) : (
-                            <Text className={`text-sm font-bold ${getTextStyles(secondaryActionVariant)}`}>{secondaryActionLabel}</Text>
+                    <View>
+                        <Pressable
+                            onPress={onSecondaryAction}
+                            onLongPress={() => setShowSecondaryTooltip(true)}
+                            onPressOut={() => setShowSecondaryTooltip(false)}
+                            delayLongPress={500}
+                            disabled={isSecondaryLoading}
+                            className={`h-10 w-10 rounded-[14px] items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(secondaryActionVariant, isSecondaryLoading)}`}
+                        >
+                            {isSecondaryLoading ? (
+                                <ActivityIndicator color={getIconColor(secondaryActionVariant, isSecondaryLoading)} size="small" />
+                            ) : isIconMaterial(secondaryActionLabel) ? (
+                                <MaterialIcons name={getIconName(secondaryActionLabel) as any} size={20} color={getIconColor(secondaryActionVariant, false)} />
+                            ) : (
+                                <Ionicons name={getIconName(secondaryActionLabel) as any} size={18} color={getIconColor(secondaryActionVariant, false)} />
+                            )}
+                        </Pressable>
+                        {showSecondaryTooltip && (
+                            <View className="absolute top-12 right-0 bg-foreground dark:bg-foreground-dark px-3 py-1.5 rounded-lg z-50">
+                                <Text className="text-xs font-bold text-background dark:text-background-dark whitespace-nowrap">{secondaryActionLabel}</Text>
+                            </View>
                         )}
-                    </Pressable>
+                    </View>
                 )}
 
-                <Pressable
-                    onPress={onAction}
-                    disabled={isLoading}
-                    className={`h-10 rounded-[14px] px-3 items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(actionVariant, isLoading)}`}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator color={actionVariant === "secondary" ? "#64748B" : "#F8FAFC"} size="small" />
-                    ) : (
-                        <Text className={`text-sm font-bold ${getTextStyles(actionVariant)}`}>{actionLabel}</Text>
+                <View>
+                    <Pressable
+                        onPress={onAction}
+                        onLongPress={() => setShowPrimaryTooltip(true)}
+                        onPressOut={() => setShowPrimaryTooltip(false)}
+                        delayLongPress={500}
+                        disabled={isLoading}
+                        className={`h-10 w-10 rounded-[14px] items-center justify-center shadow-sm active:scale-95 ${getVariantStyles(actionVariant, isLoading)}`}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color={getIconColor(actionVariant, isLoading)} size="small" />
+                        ) : isIconMaterial(actionLabel) ? (
+                            <MaterialIcons name={getIconName(actionLabel) as any} size={20} color={getIconColor(actionVariant, false)} />
+                        ) : (
+                            <Ionicons name={getIconName(actionLabel) as any} size={18} color={getIconColor(actionVariant, false)} />
+                        )}
+                    </Pressable>
+                    {showPrimaryTooltip && (
+                        <View className="absolute top-12 right-0 bg-foreground dark:bg-foreground-dark px-3 py-1.5 rounded-lg z-50">
+                            <Text className="text-xs font-bold text-background dark:text-background-dark whitespace-nowrap">{actionLabel}</Text>
+                        </View>
                     )}
-                </Pressable>
+                </View>
             </View>
         </View>
     );

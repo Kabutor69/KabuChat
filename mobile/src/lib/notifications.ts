@@ -1,15 +1,17 @@
-// NOTE: This file should ONLY be dynamically imported in development builds
-// expo-notifications doesn't work in Expo Go (SDK 53+)
-// Import this module only after checking it's available
-
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
     // Dynamic import to avoid loading in Expo Go
-    const Notifications = await import("expo-notifications");
+    const NotificationsModule = await import("expo-notifications");
     const { Platform } = await import("react-native");
+    
+    // Check if running on Expo Go or if functions are available
+    if (!NotificationsModule?.setNotificationHandler) {
+      console.log("Push notifications not available (running on Expo Go). Use a development build for full notification support.");
+      return null;
+    }
 
     // Configure notification handler
-    Notifications.setNotificationHandler({
+    NotificationsModule.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
@@ -27,12 +29,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     // Check existing permissions
     const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
+      await NotificationsModule.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     // Request permissions if not granted
     if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await NotificationsModule.requestPermissionsAsync();
       finalStatus = status;
     }
 
@@ -42,13 +44,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
 
     // Get Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync({
+    const tokenData = await NotificationsModule.getExpoPushTokenAsync({
       projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
     });
 
     return tokenData.data;
   } catch (error) {
-    console.error("Failed to get push token:", error);
+    console.error("Failed to setup push notifications:", error);
     return null;
   }
 }
@@ -56,13 +58,35 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function addNotificationReceivedListener(
   listener: (notification: any) => void,
 ) {
-  const Notifications = await import("expo-notifications");
-  return Notifications.addNotificationReceivedListener(listener);
+  try {
+    const NotificationsModule = await import("expo-notifications");
+    
+    if (!NotificationsModule?.addNotificationReceivedListener) {
+      console.log("Notification listeners not available on this platform");
+      return null;
+    }
+    
+    return NotificationsModule.addNotificationReceivedListener(listener);
+  } catch (error) {
+    console.error("Failed to add notification listener:", error);
+    return null;
+  }
 }
 
 export async function addNotificationResponseReceivedListener(
   listener: (response: any) => void,
 ) {
-  const Notifications = await import("expo-notifications");
-  return Notifications.addNotificationResponseReceivedListener(listener);
+  try {
+    const NotificationsModule = await import("expo-notifications");
+    
+    if (!NotificationsModule?.addNotificationResponseReceivedListener) {
+      console.log("Notification response listeners not available on this platform");
+      return null;
+    }
+    
+    return NotificationsModule.addNotificationResponseReceivedListener(listener);
+  } catch (error) {
+    console.error("Failed to add notification response listener:", error);
+    return null;
+  }
 }

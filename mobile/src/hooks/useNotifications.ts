@@ -67,17 +67,23 @@ export const useNotifications = () => {
 
     const setupSocketNotifications = async () => {
       try {
-        const Notifications = await import("expo-notifications");
+        const NotificationsModule = await import("expo-notifications");
         const socket = getSocket();
 
         if (!socket) return;
+        
+        // Check if notifications are available (not on Expo Go)
+        if (!NotificationsModule?.scheduleNotificationAsync) {
+          console.log("Local notifications not available (running on Expo Go)");
+          return;
+        }
 
         // New message event
         const handleNewMessage = async (message: any) => {
           console.log("New message received:", message);
           
           try {
-            await Notifications.scheduleNotificationAsync({
+            await NotificationsModule.scheduleNotificationAsync({
               content: {
                 title: message.sender?.username || "New Message",
                 body: message.content || "You have a new message",
@@ -101,7 +107,7 @@ export const useNotifications = () => {
           console.log("Friend request received:", request);
           
           try {
-            await Notifications.scheduleNotificationAsync({
+            await NotificationsModule.scheduleNotificationAsync({
               content: {
                 title: "Friend Request",
                 body: `${request.sender?.username || "Someone"} sent you a friend request`,

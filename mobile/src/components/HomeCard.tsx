@@ -2,7 +2,7 @@ import { Conversation } from "@/lib/api";
 import { COLORS } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { cacheGet } from "@/lib/cache";
 
@@ -17,9 +17,18 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     currentUserId,
     onPress,
 }) => {
+    // Get cached members for offline avatar/name fallback
+    const cachedMembers = useMemo(() => {
+        return cacheGet<Record<string, any>>("members") || {};
+    }, []);
+
     // Find the other user in conversation
     const otherUser = conversation.members.find((member) => member.clerkId !== currentUserId) 
         || conversation.members[0];
+
+    // Use cached member data as fallback for offline avatars
+    const otherUserAvatar = otherUser?.avatar || (otherUser?.clerkId ? cachedMembers[otherUser.clerkId]?.imageUrl || cachedMembers[otherUser.clerkId]?.avatar : undefined);
+    const otherUserName = otherUser?.name || (otherUser?.clerkId ? cachedMembers[otherUser.clerkId]?.name || cachedMembers[otherUser.clerkId]?.username : undefined);
 
     // Get sender of last message with fallback
     const lastMessageSender = conversation.lastMessage?.sender;
@@ -59,9 +68,9 @@ export const HomeCard: React.FC<HomeCardProps> = ({
             {/* Avatar Section */}
             <View className="relative">
                 <View className="p-1 bg-surface-elevated dark:bg-surface-elevated-dark rounded-3xl shadow-sm shadow-primary/10 border border-border dark:border-border-dark">
-                    {otherUser?.avatar ? (
+                    {otherUserAvatar ? (
                         <Image
-                            source={otherUser.avatar}
+                            source={otherUserAvatar}
                             style={{ width: 50, height: 50, borderRadius: 25 }}
                             contentFit="cover"
                         />
@@ -79,7 +88,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
                     <Text className="text-base font-black text-foreground dark:text-foreground-dark tracking-tight">
                         {conversation.isGroup && conversation.name
                             ? conversation.name
-                            : otherUser?.name ?? "Unknown user"}
+                            : otherUserName ?? "Unknown user"}
                     </Text>
                     {conversation.lastMessage?.createdAt && (
                         <Text className={`text-[10px] font-bold ${isUnread ? 'text-primary' : 'text-foreground-subtle dark:text-foreground-subtle-dark'}`}>
